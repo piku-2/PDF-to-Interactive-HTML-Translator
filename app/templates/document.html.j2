@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="system" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<script>
+try {
+  var storedTheme = localStorage.getItem("pdf2html.theme");
+  if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+    document.documentElement.setAttribute("data-theme", storedTheme);
+  }
+  var storedFont = localStorage.getItem("pdf2html.font");
+  if (storedFont && /^\d+px$/.test(storedFont)) {
+    document.documentElement.style.setProperty("--base-font-size", storedFont);
+  }
+} catch (error) {}
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #e6dfd4;
+    --sidebar: #f4efe7;
+    --paper: #fbf7f1;
+    --ink: #1d1916;
+    --muted: #5f574f;
+    --line: #ddd3c6;
+    --accent: #8a3d32;
+    --accent-soft: #f3e2db;
+    --on-accent: #fffaf7;
+    --tooltip-bg: #2b221d;
+    --tooltip-fg: #fbf7f1;
+    --shadow: 0 18px 40px rgba(72, 48, 28, 0.08);
+    --base-font-size: 18px;
+    --serif: "Iowan Old Style", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, "Noto Serif CJK JP", "Source Han Serif JP", serif;
+    --sans: "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Source Han Sans JP", Meiryo, sans-serif;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101318;
+    --sidebar: #171b21;
+    --paper: #1c2129;
+    --ink: #f2ebe3;
+    --muted: #b5aa9f;
+    --line: #333b46;
+    --accent: #e4a58c;
+    --accent-soft: #3c2d29;
+    --on-accent: #2a1814;
+    --tooltip-bg: #f6f0e8;
+    --tooltip-fg: #1c1814;
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html[data-theme="system"] {
+      color-scheme: dark;
+      --bg: #101318;
+      --sidebar: #171b21;
+      --paper: #1c2129;
+      --ink: #f2ebe3;
+      --muted: #b5aa9f;
+      --line: #333b46;
+      --accent: #e4a58c;
+      --accent-soft: #3c2d29;
+      --on-accent: #2a1814;
+      --tooltip-bg: #f6f0e8;
+      --tooltip-fg: #1c1814;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, a:focus-visible, .word-hover:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .skip {
+    position: absolute;
+    left: 0.5rem;
+    top: -4rem;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 0.4rem 0.7rem;
+    z-index: 20;
+  }
+  .skip:focus { top: 0.5rem; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow: auto;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+    padding: 1.1rem 0.9rem 2rem;
+  }
+  .sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .toc { display: flex; flex-direction: column; gap: 0.15rem; }
+  .toc a {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 0.35rem 0.55rem;
+    font-size: calc(var(--base-font-size) * 0.82);
+    line-height: 1.45;
+  }
+  .toc a[data-level="2"] { padding-left: 1rem; }
+  .toc a[data-level="3"] { padding-left: 1.55rem; }
+  .toc a[data-level="4"],
+  .toc a[data-level="5"],
+  .toc a[data-level="6"] { padding-left: 2.05rem; }
+  .toc a:hover, .toc a.active { background: var(--accent-soft); }
+  .toc-empty { color: var(--muted); font-size: 0.92rem; margin: 0.4rem 0.55rem; }
+  body.mode-default .toc .translated,
+  body.mode-block .toc .translated,
+  body.mode-full-ja .toc .original { display: none; }
+
+  .workspace { min-width: 0; }
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem 0.75rem;
+    padding: 0.7rem 1rem;
+    background: color-mix(in srgb, var(--sidebar) 88%, transparent);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+  }
+  .doc-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    max-width: min(34vw, 28rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: auto;
+  }
+  .segment, .font-controls {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .segment button, .font-controls button, .icon-button {
+    border: 0;
+    background: transparent;
+    padding: 0.38rem 0.72rem;
+    line-height: 1.2;
+  }
+  .segment button + button, .font-controls button + button { border-left: 1px solid var(--line); }
+  .segment button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .font-label {
+    min-width: 2.4rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .icon-button {
+    display: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    padding: 0.35rem 0.7rem;
+  }
+
+  .paper {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2.2rem 1.4rem 4.5rem;
+    font-size: var(--base-font-size);
+  }
+  .block { scroll-margin-top: 5.2rem; }
+  .heading { font-family: var(--serif); line-height: 1.3; margin: 2rem 0 0.8rem; }
+  .heading .original, .sentence .original { font-family: var(--serif); }
+  .heading .translated, .sentence .translated { font-family: var(--sans); }
+  h1.heading { font-size: 2em; margin-top: 0.2rem; }
+  h2.heading { font-size: 1.45em; }
+  h3.heading { font-size: 1.2em; }
+  .sentence { margin: 0.95rem 0; }
+  .sentence .original, .sentence .translated { margin: 0; }
+  .missing { color: var(--muted); font-style: italic; }
+
+  body.mode-default .translated,
+  body.mode-full-ja .original { display: none; }
+  body.mode-block .sentence,
+  body.mode-block .table {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 1.4rem;
+    align-items: start;
+  }
+  body.mode-block .sentence { padding-bottom: 0.85rem; border-bottom: 1px solid var(--line); }
+  body.mode-block .translated { color: var(--ink); }
+  body.mode-block .heading .translated {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.72em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .word-hover {
+    text-decoration: underline dotted var(--accent);
+    text-underline-offset: 0.18em;
+    cursor: help;
+    border-radius: 0.15em;
+  }
+  .word-hover:hover { background: var(--accent-soft); }
+  html.no-js .word-hover { position: relative; }
+  html.no-js .word-hover:hover::after {
+    content: attr(data-meaning);
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 0.35rem);
+    z-index: 6;
+    width: max-content;
+    max-width: 16rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-fg);
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    white-space: normal;
+    text-decoration: none;
+    box-shadow: var(--shadow);
+  }
+  .tooltip {
+    position: fixed;
+    z-index: 30;
+    max-width: min(20rem, calc(100vw - 1rem));
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-fg);
+    font-size: 0.85rem;
+    line-height: 1.45;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    margin: 0.4rem 0 1rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper);
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 28rem; }
+  th, td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--accent-soft); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  pre {
+    margin: 0;
+    padding: 0.8rem 1rem;
+    white-space: pre-wrap;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+    font-size: 0.86em;
+  }
+
+  .backdrop { display: none; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .icon-button { display: inline-flex; }
+    .sidebar {
+      position: fixed;
+      z-index: 12;
+      width: min(86vw, 320px);
+      transform: translateX(-105%);
+      transition: transform 160ms ease;
+      box-shadow: var(--shadow);
+    }
+    .sidebar.open { transform: none; }
+    .backdrop.show {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 16, 12, 0.35);
+      z-index: 11;
+    }
+    .doc-title { max-width: 46vw; }
+    body.mode-block .sentence,
+    body.mode-block .table { grid-template-columns: 1fr; }
+    table { min-width: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .sidebar { transition: none; }
+  }
+  @media print {
+    .toolbar, .sidebar, .backdrop, .tooltip, .icon-button { display: none !important; }
+    .app { display: block; }
+    body { background: white; color: black; }
+    .paper { max-width: none; }
+    body.mode-default .translated,
+    body.mode-full-ja .original { display: revert; }
+    .sentence, .table { display: block; }
+  }
+</style>
+</head>
+<body class="mode-default">
+<script>
+try {
+  var storedMode = localStorage.getItem("pdf2html.mode");
+  if (storedMode === "mode-default" || storedMode === "mode-full-ja" || storedMode === "mode-block") {
+    document.body.className = storedMode;
+  }
+} catch (error) {}
+document.documentElement.classList.remove("no-js");
+</script>
+<a class="skip" href="#content">本文へ</a>
+<div class="backdrop" id="backdrop"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <span>目次</span>
+      <button type="button" class="icon-button" id="toc-close" aria-label="目次を閉じる">閉じる</button>
+    </div>
+    <nav class="toc" aria-label="目次">
+      {% set ns = namespace(count=0) %}
+      {% for block in blocks if block.type == "heading" %}
+        {% set ns.count = ns.count + 1 %}
+        <a href="#{{ block.id }}" data-level="{{ block.level }}">
+          <span class="original">{{ block.toc_original }}</span>
+          <span class="translated">{{ block.toc_translated or "（訳なし）" }}</span>
+        </a>
+      {% endfor %}
+      {% if ns.count == 0 %}
+        <p class="toc-empty">見出しがありません</p>
+      {% endif %}
+    </nav>
+  </aside>
+  <div class="workspace">
+    <header class="toolbar">
+      <button type="button" class="icon-button" id="toc-open" aria-label="目次を開く">目次</button>
+      <div class="doc-title">{{ title }}</div>
+      <div class="segment" role="group" aria-label="表示モード">
+        <button type="button" data-mode="mode-default" aria-pressed="true">原文</button>
+        <button type="button" data-mode="mode-full-ja" aria-pressed="false">日本語</button>
+        <button type="button" data-mode="mode-block" aria-pressed="false">対訳</button>
+      </div>
+      <div class="segment" role="group" aria-label="テーマ">
+        <button type="button" data-theme="light" aria-pressed="false">ライト</button>
+        <button type="button" data-theme="dark" aria-pressed="false">ダーク</button>
+        <button type="button" data-theme="system" aria-pressed="true">システム</button>
+      </div>
+      <div class="font-controls" role="group" aria-label="文字サイズ">
+        <button type="button" id="font-dec" aria-label="文字を小さく">A−</button>
+        <span class="font-label" id="font-label">18</span>
+        <button type="button" id="font-inc" aria-label="文字を大きく">A+</button>
+      </div>
+    </header>
+    <article class="paper" id="content">
+      {% for block in blocks %}
+        {% if block.type == "heading" %}
+          <{{ block.tag }} id="{{ block.id }}" class="block heading">
+            <span class="original">{{ block.original_html }}</span>
+            <span class="translated">{{ block.translated_html }}</span>
+          </{{ block.tag }}>
+        {% elif block.type == "table" %}
+          <div id="{{ block.id }}" class="block table">
+            <div class="original">{{ block.original_html }}</div>
+            <div class="translated">{{ block.translated_html }}</div>
+          </div>
+        {% else %}
+          <div id="{{ block.id }}" class="block sentence">
+            <p class="original">{{ block.original_html }}</p>
+            <p class="translated">{{ block.translated_html }}</p>
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="missing">このPDFから本文を抽出できませんでした。</p>
+      {% endfor %}
+    </article>
+  </div>
+</div>
+<div id="tooltip" class="tooltip" hidden></div>
+<script>
+(function () {
+  var root = document.documentElement;
+  var body = document.body;
+  var MODES = ["mode-default", "mode-full-ja", "mode-block"];
+  var THEMES = ["light", "dark", "system"];
+  var FONT_MIN = 14;
+  var FONT_MAX = 28;
+
+  function currentFont() {
+    var value = getComputedStyle(root).getPropertyValue("--base-font-size");
+    var size = parseInt(value, 10);
+    return size >= FONT_MIN && size <= FONT_MAX ? size : 18;
+  }
+
+  function setPressed(selector, attr, value) {
+    document.querySelectorAll(selector).forEach(function (button) {
+      button.setAttribute("aria-pressed", button.getAttribute(attr) === value ? "true" : "false");
+    });
+  }
+
+  function setMode(mode) {
+    if (MODES.indexOf(mode) === -1) mode = "mode-default";
+    body.classList.remove("mode-default", "mode-full-ja", "mode-block");
+    body.classList.add(mode);
+    setPressed("button[data-mode]", "data-mode", mode);
+    try { localStorage.setItem("pdf2html.mode", mode); } catch (error) {}
+  }
+
+  function setTheme(theme) {
+    if (THEMES.indexOf(theme) === -1) theme = "system";
+    root.setAttribute("data-theme", theme);
+    setPressed("button[data-theme]", "data-theme", theme);
+    try { localStorage.setItem("pdf2html.theme", theme); } catch (error) {}
+  }
+
+  function setFont(size) {
+    size = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
+    root.style.setProperty("--base-font-size", size + "px");
+    var label = document.getElementById("font-label");
+    if (label) label.textContent = String(size);
+    try { localStorage.setItem("pdf2html.font", size + "px"); } catch (error) {}
+  }
+
+  document.querySelectorAll("[data-mode]").forEach(function (button) {
+    button.addEventListener("click", function () { setMode(button.getAttribute("data-mode")); });
+  });
+  document.querySelectorAll("[data-theme]").forEach(function (button) {
+    button.addEventListener("click", function () { setTheme(button.getAttribute("data-theme")); });
+  });
+  document.getElementById("font-dec").addEventListener("click", function () { setFont(currentFont() - 1); });
+  document.getElementById("font-inc").addEventListener("click", function () { setFont(currentFont() + 1); });
+
+  var initialMode = "mode-default";
+  MODES.forEach(function (mode) {
+    if (body.classList.contains(mode)) initialMode = mode;
+  });
+  setMode(initialMode);
+  setTheme(root.getAttribute("data-theme") || "system");
+  setFont(currentFont());
+
+  var sidebar = document.getElementById("sidebar");
+  var backdrop = document.getElementById("backdrop");
+  function closeSidebar() {
+    sidebar.classList.remove("open");
+    backdrop.classList.remove("show");
+  }
+  document.getElementById("toc-open").addEventListener("click", function () {
+    sidebar.classList.add("open");
+    backdrop.classList.add("show");
+  });
+  document.getElementById("toc-close").addEventListener("click", closeSidebar);
+  backdrop.addEventListener("click", closeSidebar);
+  sidebar.addEventListener("click", function (event) {
+    if (event.target.closest("a")) closeSidebar();
+  });
+
+  var links = {};
+  document.querySelectorAll(".toc a").forEach(function (link) {
+    var id = (link.getAttribute("href") || "").slice(1);
+    if (id) links[id] = link;
+  });
+  if ("IntersectionObserver" in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        Object.keys(links).forEach(function (id) { links[id].classList.remove("active"); });
+        if (links[entry.target.id]) links[entry.target.id].classList.add("active");
+      });
+    }, { rootMargin: "-15% 0px -70% 0px", threshold: 0.01 });
+    document.querySelectorAll(".block.heading").forEach(function (heading) { observer.observe(heading); });
+  }
+
+  var tip = document.getElementById("tooltip");
+  var pinned = null;
+  function hideTip() {
+    pinned = null;
+    tip.hidden = true;
+    tip.textContent = "";
+  }
+  function showTip(target) {
+    var text = target.getAttribute("data-meaning") || "";
+    if (!text) return;
+    tip.textContent = text;
+    tip.hidden = false;
+    var rect = target.getBoundingClientRect();
+    var tipRect = tip.getBoundingClientRect();
+    var left = rect.left;
+    var top = rect.top - tipRect.height - 8;
+    if (top < 8) top = rect.bottom + 8;
+    if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - tipRect.width - 8;
+    if (left < 8) left = 8;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  document.addEventListener("pointerover", function (event) {
+    var target = event.target.closest ? event.target.closest(".word-hover") : null;
+    if (!target || pinned) return;
+    showTip(target);
+  });
+  document.addEventListener("pointerout", function (event) {
+    if (pinned) return;
+    var target = event.target.closest ? event.target.closest(".word-hover") : null;
+    if (!target) return;
+    if (event.relatedTarget && target.contains(event.relatedTarget)) return;
+    hideTip();
+  });
+  document.addEventListener("click", function (event) {
+    var target = event.target.closest ? event.target.closest(".word-hover") : null;
+    if (!target) {
+      hideTip();
+      return;
+    }
+    if (window.matchMedia("(hover: none)").matches) {
+      if (pinned === target) hideTip();
+      else {
+        pinned = target;
+        showTip(target);
+      }
+    }
+  });
+  window.addEventListener("scroll", function () { if (!pinned) hideTip(); }, true);
+})();
+</script>
+</body>
+</html>
