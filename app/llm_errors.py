@@ -14,5 +14,7 @@ class AllProvidersFailed(RuntimeError):
 
     def __init__(self, errors: list[tuple[str, str]]) -> None:
         self.errors = errors
-        detail = "; ".join(f"{name}: {message}" for name, message in errors) or "原因不明"
+        detail = (
+            "; ".join(f"{name}: {message}" for name, message in errors) or "原因不明"
+        )
         super().__init__(f"全プロバイダーが失敗しました。{detail}")

@@ -1,44 +1,34 @@
 <!DOCTYPE html>
 <html lang="ja" data-theme="system">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PDF対訳</title>
-<script>
-try {
-  var storedTheme = localStorage.getItem("pdf2html.theme");
-  if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
-    document.documentElement.setAttribute("data-theme", storedTheme);
-  }
-} catch (error) {}
-</script>
-<style>
-  :root {
-    color-scheme: light;
-    --bg: #e6dfd4;
-    --card: #fbf7f1;
-    --ink: #1d1916;
-    --muted: #5f574f;
-    --line: #ddd3c6;
-    --accent: #8a3d32;
-    --on-accent: #fffaf7;
-    --danger: #8a2430;
-    --serif: "Iowan Old Style", Palatino, Georgia, serif;
-    --sans: "Segoe UI", "Hiragino Sans", "Noto Sans CJK JP", Meiryo, sans-serif;
-  }
-  html[data-theme="dark"] {
-    color-scheme: dark;
-    --bg: #101318;
-    --card: #1c2129;
-    --ink: #f2ebe3;
-    --muted: #b5aa9f;
-    --line: #333b46;
-    --accent: #e4a58c;
-    --on-accent: #2a1814;
-    --danger: #ffb4b4;
-  }
-  @media (prefers-color-scheme: dark) {
-    html[data-theme="system"] {
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF対訳</title>
+  <script>
+    try {
+      var storedTheme = localStorage.getItem("pdf2html.theme");
+      if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+        document.documentElement.setAttribute("data-theme", storedTheme);
+      }
+    } catch (error) { }
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #e6dfd4;
+      --card: #fbf7f1;
+      --ink: #1d1916;
+      --muted: #5f574f;
+      --line: #ddd3c6;
+      --accent: #8a3d32;
+      --on-accent: #fffaf7;
+      --danger: #8a2430;
+      --serif: "Iowan Old Style", Palatino, Georgia, serif;
+      --sans: "Segoe UI", "Hiragino Sans", "Noto Sans CJK JP", Meiryo, sans-serif;
+    }
+
+    html[data-theme="dark"] {
       color-scheme: dark;
       --bg: #101318;
       --card: #1c2129;
@@ -49,246 +39,320 @@ try {
       --on-accent: #2a1814;
       --danger: #ffb4b4;
     }
-  }
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: grid;
-    place-items: center;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    padding: 1.5rem;
-  }
-  .card {
-    width: min(40rem, 100%);
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 1.6rem 1.4rem 1.4rem;
-    box-shadow: 0 18px 40px rgba(72, 48, 28, 0.08);
-  }
-  h1 { font-family: var(--serif); font-size: 2rem; line-height: 1.2; margin: 0 0 0.4rem; }
-  p { color: var(--muted); line-height: 1.6; }
-  .drop {
-    margin-top: 1rem;
-    border: 1.5px dashed var(--line);
-    border-radius: 14px;
-    padding: 1.4rem 1rem;
-    text-align: center;
-    background: color-mix(in srgb, var(--bg) 55%, var(--card));
-  }
-  .drop.over { border-color: var(--accent); }
-  .pick {
-    display: inline-block;
-    margin-top: 0.85rem;
-    border: 1px solid var(--line);
-    background: var(--card);
-    border-radius: 8px;
-    padding: 0.35rem 0.75rem;
-    cursor: pointer;
-  }
-  .pick input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    border: 0;
-  }
-  .chosen { margin-top: 0.45rem; font-size: 0.85rem; color: var(--muted); }
-  button, a.button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 1rem;
-    border: 0;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--on-accent);
-    text-decoration: none;
-    padding: 0.6rem 1.1rem;
-    font: inherit;
-    cursor: pointer;
-  }
-  button:disabled { opacity: 0.55; cursor: progress; }
-  .progress {
-    display: none;
-    margin-top: 1.1rem;
-    height: 0.55rem;
-    border-radius: 999px;
-    background: var(--line);
-    overflow: hidden;
-  }
-  .progress.show { display: block; }
-  .progress span {
-    display: block;
-    height: 100%;
-    width: 0;
-    background: var(--accent);
-  }
-  .status { min-height: 1.4rem; margin: 0.7rem 0 0; }
-  .error { color: var(--danger); white-space: pre-wrap; }
-  .theme-row { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
-  .theme-row button {
-    margin-top: 0;
-    background: transparent;
-    color: var(--ink);
-    border: 1px solid var(--line);
-    padding: 0.3rem 0.65rem;
-  }
-  .theme-row button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-</style>
+
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="system"] {
+        color-scheme: dark;
+        --bg: #101318;
+        --card: #1c2129;
+        --ink: #f2ebe3;
+        --muted: #b5aa9f;
+        --line: #333b46;
+        --accent: #e4a58c;
+        --on-accent: #2a1814;
+        --danger: #ffb4b4;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      padding: 1.5rem;
+    }
+
+    .card {
+      width: min(40rem, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1.6rem 1.4rem 1.4rem;
+      box-shadow: 0 18px 40px rgba(72, 48, 28, 0.08);
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: 2rem;
+      line-height: 1.2;
+      margin: 0 0 0.4rem;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .drop {
+      margin-top: 1rem;
+      border: 1.5px dashed var(--line);
+      border-radius: 14px;
+      padding: 1.4rem 1rem;
+      text-align: center;
+      background: color-mix(in srgb, var(--bg) 55%, var(--card));
+    }
+
+    .drop.over {
+      border-color: var(--accent);
+    }
+
+    .pick {
+      display: inline-block;
+      margin-top: 0.85rem;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 8px;
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+    }
+
+    .pick input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      border: 0;
+    }
+
+    .chosen {
+      margin-top: 0.45rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    button,
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1rem;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--on-accent);
+      text-decoration: none;
+      padding: 0.6rem 1.1rem;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: progress;
+    }
+
+    .progress {
+      display: none;
+      margin-top: 1.1rem;
+      height: 0.55rem;
+      border-radius: 999px;
+      background: var(--line);
+      overflow: hidden;
+    }
+
+    .progress.show {
+      display: block;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+    }
+
+    .status {
+      min-height: 1.4rem;
+      margin: 0.7rem 0 0;
+    }
+
+    .error {
+      color: var(--danger);
+      white-space: pre-wrap;
+    }
+
+    .theme-row {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.2rem;
+    }
+
+    .theme-row button {
+      margin-top: 0;
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 0.3rem 0.65rem;
+    }
+
+    .theme-row button[aria-pressed="true"] {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+    }
+  </style>
 </head>
+
 <body>
-<main class="card">
-  <div class="theme-row" role="group" aria-label="テーマ">
-    <button type="button" data-theme="light">ライト</button>
-    <button type="button" data-theme="dark">ダーク</button>
-    <button type="button" data-theme="system" aria-pressed="true">システム</button>
-  </div>
-  <h1>PDF対訳</h1>
-  <p>英語のPDFをアップロードすると、単語ホバー・原文／日本語／対訳の切り替え・テーマ変更・目次つきの単一HTMLを生成します。ダウンロードしたファイルは外部通信なしで開けます。</p>
-  <form id="form">
-    <div class="drop" id="drop">
-      <div>PDFをドロップ、または選択</div>
-      <label class="pick">ファイルを選択
-        <input id="file" name="file" type="file" accept="application/pdf,.pdf">
-      </label>
-      <div id="chosen" class="chosen">選択されていません</div>
+  <main class="card">
+    <div class="theme-row" role="group" aria-label="テーマ">
+      <button type="button" data-theme="light">ライト</button>
+      <button type="button" data-theme="dark">ダーク</button>
+      <button type="button" data-theme="system" aria-pressed="true">システム</button>
     </div>
-    <button id="submit" type="submit">翻訳を開始</button>
-  </form>
-  <div class="progress" id="progress"><span id="bar"></span></div>
-  <p class="status" id="status" role="status"></p>
-  <p class="error" id="error" hidden></p>
-  <a class="button" id="download" hidden>HTMLをダウンロード</a>
-</main>
-<script>
-(function () {
-  var root = document.documentElement;
-  function setTheme(theme) {
-    root.setAttribute("data-theme", theme);
-    document.querySelectorAll("button[data-theme]").forEach(function (button) {
-      button.setAttribute("aria-pressed", button.getAttribute("data-theme") === theme ? "true" : "false");
-    });
-    try { localStorage.setItem("pdf2html.theme", theme); } catch (error) {}
-  }
-  document.querySelectorAll("button[data-theme]").forEach(function (button) {
-    button.addEventListener("click", function () { setTheme(button.getAttribute("data-theme")); });
-  });
-  setTheme(root.getAttribute("data-theme") || "system");
+    <h1>PDF対訳</h1>
+    <p>英語のPDFをアップロードすると、単語ホバー・原文／日本語／対訳の切り替え・テーマ変更・目次つきの単一HTMLを生成します。ダウンロードしたファイルは外部通信なしで開けます。</p>
+    <form id="form">
+      <div class="drop" id="drop">
+        <div>PDFをドロップ、または選択</div>
+        <label class="pick">ファイルを選択
+          <input id="file" name="file" type="file" accept="application/pdf,.pdf">
+        </label>
+        <div id="chosen" class="chosen">選択されていません</div>
+      </div>
+      <button id="submit" type="submit">翻訳を開始</button>
+    </form>
+    <div class="progress" id="progress"><span id="bar"></span></div>
+    <p class="status" id="status" role="status"></p>
+    <p class="error" id="error" hidden></p>
+    <a class="button" id="download" hidden>HTMLをダウンロード</a>
+  </main>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function setTheme(theme) {
+        root.setAttribute("data-theme", theme);
+        document.querySelectorAll("button[data-theme]").forEach(function (button) {
+          button.setAttribute("aria-pressed", button.getAttribute("data-theme") === theme ? "true" : "false");
+        });
+        try { localStorage.setItem("pdf2html.theme", theme); } catch (error) { }
+      }
+      document.querySelectorAll("button[data-theme]").forEach(function (button) {
+        button.addEventListener("click", function () { setTheme(button.getAttribute("data-theme")); });
+      });
+      setTheme(root.getAttribute("data-theme") || "system");
 
-  var form = document.getElementById("form");
-  var fileInput = document.getElementById("file");
-  var submit = document.getElementById("submit");
-  var progress = document.getElementById("progress");
-  var bar = document.getElementById("bar");
-  var status = document.getElementById("status");
-  var errorBox = document.getElementById("error");
-  var download = document.getElementById("download");
-  var drop = document.getElementById("drop");
-  var labels = {
-    queued: "待機中",
-    parsing: "PDFを解析しています",
-    translating: "翻訳しています",
-    completed: "完了しました",
-    failed: "失敗しました"
-  };
+      var form = document.getElementById("form");
+      var fileInput = document.getElementById("file");
+      var submit = document.getElementById("submit");
+      var progress = document.getElementById("progress");
+      var bar = document.getElementById("bar");
+      var status = document.getElementById("status");
+      var errorBox = document.getElementById("error");
+      var download = document.getElementById("download");
+      var drop = document.getElementById("drop");
+      var labels = {
+        queued: "待機中",
+        parsing: "PDFを解析しています",
+        translating: "翻訳しています",
+        completed: "完了しました",
+        failed: "失敗しました"
+      };
 
-  function showError(message) {
-    errorBox.hidden = false;
-    errorBox.textContent = message;
-    submit.disabled = false;
-  }
+      function showError(message) {
+        errorBox.hidden = false;
+        errorBox.textContent = message;
+        submit.disabled = false;
+      }
 
-  drop.addEventListener("dragover", function (event) {
-    event.preventDefault();
-    drop.classList.add("over");
-  });
-  drop.addEventListener("dragleave", function () { drop.classList.remove("over"); });
-  function showChosen() {
-    var chosen = document.getElementById("chosen");
-    var file = fileInput.files && fileInput.files[0];
-    chosen.textContent = file ? file.name : "選択されていません";
-  }
-  fileInput.addEventListener("change", showChosen);
-  drop.addEventListener("drop", function (event) {
-    event.preventDefault();
-    drop.classList.remove("over");
-    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
-      fileInput.files = event.dataTransfer.files;
-      showChosen();
-    }
-  });
+      drop.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        drop.classList.add("over");
+      });
+      drop.addEventListener("dragleave", function () { drop.classList.remove("over"); });
+      function showChosen() {
+        var chosen = document.getElementById("chosen");
+        var file = fileInput.files && fileInput.files[0];
+        chosen.textContent = file ? file.name : "選択されていません";
+      }
+      fileInput.addEventListener("change", showChosen);
+      drop.addEventListener("drop", function (event) {
+        event.preventDefault();
+        drop.classList.remove("over");
+        if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+          fileInput.files = event.dataTransfer.files;
+          showChosen();
+        }
+      });
 
-  async function poll(jobId) {
-    var response;
-    try {
-      response = await fetch("/api/status/" + jobId);
-    } catch (error) {
-      showError("サーバーに接続できませんでした。");
-      return;
-    }
-    if (!response.ok) {
-      showError("ジョブの状態を取得できませんでした。");
-      return;
-    }
-    var data = await response.json();
-    var label = labels[data.status] || data.status;
-    status.textContent = label + "（" + data.progress + "%）";
-    bar.style.width = Math.max(0, Math.min(100, data.progress)) + "%";
-    if (data.status === "completed") {
-      download.hidden = false;
-      download.href = "/api/download/" + jobId;
-      submit.disabled = false;
-      return;
-    }
-    if (data.status === "failed") {
-      showError(data.error || "翻訳に失敗しました。");
-      return;
-    }
-    window.setTimeout(function () { poll(jobId); }, 1000);
-  }
+      async function poll(jobId) {
+        var response;
+        try {
+          response = await fetch("/api/status/" + jobId);
+        } catch (error) {
+          showError("サーバーに接続できませんでした。");
+          return;
+        }
+        if (!response.ok) {
+          showError("ジョブの状態を取得できませんでした。");
+          return;
+        }
+        var data = await response.json();
+        var label = labels[data.status] || data.status;
+        status.textContent = label + "（" + data.progress + "%）";
+        bar.style.width = Math.max(0, Math.min(100, data.progress)) + "%";
+        if (data.status === "completed") {
+          download.hidden = false;
+          download.href = "/api/download/" + jobId;
+          submit.disabled = false;
+          return;
+        }
+        if (data.status === "failed") {
+          showError(data.error || "翻訳に失敗しました。");
+          return;
+        }
+        window.setTimeout(function () { poll(jobId); }, 1000);
+      }
 
-  form.addEventListener("submit", async function (event) {
-    event.preventDefault();
-    errorBox.hidden = true;
-    download.hidden = true;
-    if (!fileInput.files || !fileInput.files[0]) {
-      showError("PDFファイルを選択してください。");
-      return;
-    }
-    var body = new FormData();
-    body.append("file", fileInput.files[0]);
-    submit.disabled = true;
-    progress.classList.add("show");
-    bar.style.width = "0%";
-    status.textContent = "アップロードしています";
-    var response;
-    try {
-      response = await fetch("/api/translate", { method: "POST", body: body });
-    } catch (error) {
-      showError("アップロードに失敗しました。");
-      return;
-    }
-    if (!response.ok) {
-      var detail = "アップロードが拒否されました。";
-      try {
-        var payload = await response.json();
-        if (payload && payload.detail) detail = payload.detail;
-      } catch (error) {}
-      showError(typeof detail === "string" ? detail : "アップロードが拒否されました。");
-      return;
-    }
-    var accepted = await response.json();
-    poll(accepted.job_id);
-  });
-})();
-</script>
+      form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        errorBox.hidden = true;
+        download.hidden = true;
+        if (!fileInput.files || !fileInput.files[0]) {
+          showError("PDFファイルを選択してください。");
+          return;
+        }
+        var body = new FormData();
+        body.append("file", fileInput.files[0]);
+        submit.disabled = true;
+        progress.classList.add("show");
+        bar.style.width = "0%";
+        status.textContent = "アップロードしています";
+        var response;
+        try {
+          response = await fetch("/api/translate", { method: "POST", body: body });
+        } catch (error) {
+          showError("アップロードに失敗しました。");
+          return;
+        }
+        if (!response.ok) {
+          var detail = "アップロードが拒否されました。";
+          try {
+            var payload = await response.json();
+            if (payload && payload.detail) detail = payload.detail;
+          } catch (error) { }
+          showError(typeof detail === "string" ? detail : "アップロードが拒否されました。");
+          return;
+        }
+        var accepted = await response.json();
+        poll(accepted.job_id);
+      });
+    })();
+  </script>
 </body>
+
 </html>

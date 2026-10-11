@@ -28,7 +28,9 @@ from app.prompts import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PRIORITY = "anthropic,gemini,openai,grok,deepseek,kimi,glm,openrouter,nvidia_nim"
+DEFAULT_PRIORITY = (
+    "anthropic,gemini,openai,grok,deepseek,kimi,glm,openrouter,nvidia_nim"
+)
 
 _PLACEHOLDERS = {
     "changeme",
@@ -54,8 +56,16 @@ class ProviderSpec:
 
 
 PROVIDERS: dict[str, ProviderSpec] = {
-    "anthropic": ProviderSpec("anthropic", MODEL_NAME, ("ANTHROPIC_API_KEY",), "anthropic", max_output_tokens=16000),
-    "gemini": ProviderSpec("gemini", "gemini-2.5-flash-lite", ("GEMINI_API_KEY",), "gemini"),
+    "anthropic": ProviderSpec(
+        "anthropic",
+        MODEL_NAME,
+        ("ANTHROPIC_API_KEY",),
+        "anthropic",
+        max_output_tokens=16000,
+    ),
+    "gemini": ProviderSpec(
+        "gemini", "gemini-2.5-flash-lite", ("GEMINI_API_KEY",), "gemini"
+    ),
     "openai": ProviderSpec("openai", "gpt-4o-mini", ("OPENAI_API_KEY",), "openai"),
     "grok": ProviderSpec(
         "grok",
@@ -148,7 +158,11 @@ def _usable_key(*env_names: str) -> Optional[str]:
         if value is None:
             continue
         stripped = value.strip()
-        if not stripped or stripped.lower() in _PLACEHOLDERS or stripped.endswith("..."):
+        if (
+            not stripped
+            or stripped.lower() in _PLACEHOLDERS
+            or stripped.endswith("...")
+        ):
             continue
         return stripped
     return None
@@ -178,17 +192,23 @@ def describe_chain(chain: Optional[list[ProviderSpec]] = None) -> str:
     return ", ".join(f"{spec.name} ({spec.model})" for spec in specs)
 
 
-def log_active_providers(prefix: str = "現在アクティブなプロバイダー順序") -> list[ProviderSpec]:
+def log_active_providers(
+    prefix: str = "現在アクティブなプロバイダー順序",
+) -> list[ProviderSpec]:
     chain = available_providers()
     logger.info("%s: %s", prefix, describe_chain(chain))
     if chain:
-        logger.info("メインで使用するプロバイダー: %s model=%s", chain[0].name, chain[0].model)
+        logger.info(
+            "メインで使用するプロバイダー: %s model=%s", chain[0].name, chain[0].model
+        )
     else:
         logger.warning("有効なAPIキーがないため、翻訳リクエストは失敗します。")
     return chain
 
 
-def openai_request_kwargs(spec: ProviderSpec, blocks: list[TextBlock]) -> dict[str, Any]:
+def openai_request_kwargs(
+    spec: ProviderSpec, blocks: list[TextBlock]
+) -> dict[str, Any]:
     """Body of an OpenAI-compatible chat call. The prompt contains 'json'."""
     return {
         "model": spec.model,
@@ -257,7 +277,9 @@ async def call_with_fallback(
     raise AllProvidersFailed(errors)
 
 
-async def _dispatch(spec: ProviderSpec, blocks: list[TextBlock]) -> list[SentenceTranslation]:
+async def _dispatch(
+    spec: ProviderSpec, blocks: list[TextBlock]
+) -> list[SentenceTranslation]:
     api_key = _usable_key(*spec.env_vars)
     if not api_key:
         raise ProviderCallError(f"{spec.name} のAPIキーがありません。")
@@ -268,7 +290,9 @@ async def _dispatch(spec: ProviderSpec, blocks: list[TextBlock]) -> list[Sentenc
     return await _openai_translate(spec, api_key, blocks)
 
 
-async def _anthropic_translate(spec: ProviderSpec, blocks: list[TextBlock]) -> list[SentenceTranslation]:
+async def _anthropic_translate(
+    spec: ProviderSpec, blocks: list[TextBlock]
+) -> list[SentenceTranslation]:
     from app.translator import get_client
 
     try:
@@ -296,7 +320,10 @@ async def _anthropic_translate(spec: ProviderSpec, blocks: list[TextBlock]) -> l
 
     tool_input = None
     for part in response.content:
-        if getattr(part, "type", None) == "tool_use" and getattr(part, "name", None) == "submit_translations":
+        if (
+            getattr(part, "type", None) == "tool_use"
+            and getattr(part, "name", None) == "submit_translations"
+        ):
             tool_input = part.input
             break
     if tool_input is None:
@@ -340,7 +367,9 @@ async def _openai_translate(
         raise OutputTooLarge(spec.name)
     content = choice.message.content or ""
     parsed = parse_batch_json(content)
-    logger.info("応答 provider=%s model=%s blocks=%s", spec.name, spec.model, len(blocks))
+    logger.info(
+        "応答 provider=%s model=%s blocks=%s", spec.name, spec.model, len(blocks)
+    )
     return list(parsed.items)
 
 
@@ -440,13 +469,24 @@ def _should_fallback(exc: BaseException) -> bool:
     if isinstance(exc, ProviderCallError):
         return True
     status = getattr(exc, "status_code", None)
-    if isinstance(status, int) and (status in {400, 401, 403, 408, 409, 429} or status >= 500):
+    if isinstance(status, int) and (
+        status in {400, 401, 403, 408, 409, 429} or status >= 500
+    ):
         return True
     code = getattr(exc, "code", None)
-    if isinstance(code, int) and (code in {400, 401, 403, 408, 409, 429} or code >= 500):
+    if isinstance(code, int) and (
+        code in {400, 401, 403, 408, 409, 429} or code >= 500
+    ):
         return True
     typename = type(exc).__name__.lower()
-    markers = ("timeout", "connection", "ratelimit", "authentication", "servererror", "clienterror")
+    markers = (
+        "timeout",
+        "connection",
+        "ratelimit",
+        "authentication",
+        "servererror",
+        "clienterror",
+    )
     return any(marker in typename for marker in markers)
 
 

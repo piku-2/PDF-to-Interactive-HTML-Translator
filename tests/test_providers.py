@@ -53,7 +53,9 @@ def isolated_env(**overrides: str):
 
 
 def _block() -> list[TextBlock]:
-    return [TextBlock(id="b-1", type="sentence", original_text="Attention is all you need.")]
+    return [
+        TextBlock(id="b-1", type="sentence", original_text="Attention is all you need.")
+    ]
 
 
 class PriorityTests(unittest.TestCase):
@@ -120,10 +122,30 @@ class PriorityTests(unittest.TestCase):
             "anthropic": (MODEL_NAME, ("ANTHROPIC_API_KEY",), None, "anthropic"),
             "gemini": ("gemini-2.5-flash-lite", ("GEMINI_API_KEY",), None, "gemini"),
             "openai": ("gpt-4o-mini", ("OPENAI_API_KEY",), None, "openai"),
-            "grok": ("grok-2-latest", ("GROK_API_KEY", "XAI_API_KEY"), "https://api.x.ai/v1", "openai"),
-            "deepseek": ("deepseek-chat", ("DEEPSEEK_API_KEY",), "https://api.deepseek.com", "openai"),
-            "kimi": ("moonshot-v1-8k", ("KIMI_API_KEY",), "https://api.moonshot.cn/v1", "openai"),
-            "glm": ("glm-4-flash", ("GLM_API_KEY",), "https://open.bigmodel.cn/api/paas/v4/", "openai"),
+            "grok": (
+                "grok-2-latest",
+                ("GROK_API_KEY", "XAI_API_KEY"),
+                "https://api.x.ai/v1",
+                "openai",
+            ),
+            "deepseek": (
+                "deepseek-chat",
+                ("DEEPSEEK_API_KEY",),
+                "https://api.deepseek.com",
+                "openai",
+            ),
+            "kimi": (
+                "moonshot-v1-8k",
+                ("KIMI_API_KEY",),
+                "https://api.moonshot.cn/v1",
+                "openai",
+            ),
+            "glm": (
+                "glm-4-flash",
+                ("GLM_API_KEY",),
+                "https://open.bigmodel.cn/api/paas/v4/",
+                "openai",
+            ),
             "openrouter": (
                 "anthropic/claude-3.5-haiku",
                 ("OPENROUTER_API_KEY",),
@@ -168,7 +190,10 @@ class FallbackTests(unittest.TestCase):
                 exc = RuntimeError("slow down")
                 exc.status_code = 429
                 raise exc
-            return [SentenceTranslation(id=block.id, translated="ジェミニ", words=[]) for block in blocks]
+            return [
+                SentenceTranslation(id=block.id, translated="ジェミニ", words=[])
+                for block in blocks
+            ]
 
         async def run():
             from app import providers
@@ -190,8 +215,12 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(failed, {"anthropic"})
         self.assertEqual(first[0].translated, "ジェミニ")
         self.assertEqual(second[0].translated, "ジェミニ")
-        self.assertTrue(any("フォールバック" in line and "gemini" in line for line in logs.output))
-        self.assertTrue(any("試行中のプロバイダー: anthropic" in line for line in logs.output))
+        self.assertTrue(
+            any("フォールバック" in line and "gemini" in line for line in logs.output)
+        )
+        self.assertTrue(
+            any("試行中のプロバイダー: anthropic" in line for line in logs.output)
+        )
 
     def test_truncation_does_not_switch_provider(self) -> None:
         calls: list[str] = []
@@ -235,10 +264,18 @@ class FallbackTests(unittest.TestCase):
             with self.assertLogs("app.providers", level="INFO") as logs:
                 with self.assertRaises(AllProvidersFailed) as caught:
                     asyncio.run(run())
-        self.assertEqual([name for name, _message in caught.exception.errors], ["anthropic", "openai"])
+        self.assertEqual(
+            [name for name, _message in caught.exception.errors],
+            ["anthropic", "openai"],
+        )
         self.assertIn("全プロバイダーが失敗しました", str(caught.exception))
         self.assertTrue(any("フォールバック" in line for line in logs.output))
-        self.assertTrue(any(line.startswith("ERROR:") and "全プロバイダーが失敗しました" in line for line in logs.output))
+        self.assertTrue(
+            any(
+                line.startswith("ERROR:") and "全プロバイダーが失敗しました" in line
+                for line in logs.output
+            )
+        )
 
     def test_programming_error_does_not_fall_back(self) -> None:
         calls: list[str] = []
@@ -284,7 +321,9 @@ class FallbackTests(unittest.TestCase):
             reset_jobs()
 
     def test_public_error_redacts_provider_keys(self) -> None:
-        message = public_error(RuntimeError("rejected sk-ant-abc_DEF and sk-proj-abcdef12"))
+        message = public_error(
+            RuntimeError("rejected sk-ant-abc_DEF and sk-proj-abcdef12")
+        )
         self.assertNotIn("sk-ant", message)
         self.assertNotIn("sk-proj", message)
 

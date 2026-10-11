@@ -55,14 +55,23 @@
 from pydantic import BaseModel, Field
 from typing import List
 
+
 class WordTranslation(BaseModel):
-    word: str = Field(description="本文中に登場しているそのままの単語・熟語（原形ではなく本文内の完全一致表記）")
-    context_meaning: str = Field(description="この文脈における具体的な日本語の意味・ニュアンス")
+    word: str = Field(
+        description="本文中に登場しているそのままの単語・熟語（原形ではなく本文内の完全一致表記）"
+    )
+    context_meaning: str = Field(
+        description="この文脈における具体的な日本語の意味・ニュアンス"
+    )
+
 
 class SentenceTranslation(BaseModel):
     id: str = Field(description="入力ブロックのID (例: 'b-12')")
     translated: str = Field(description="1文の自然な日本語訳")
-    words: List[WordTranslation] = Field(default_factory=list, description="専門用語や難解語の文脈訳（0〜3個）")
+    words: List[WordTranslation] = Field(
+        default_factory=list, description="専門用語や難解語の文脈訳（0〜3個）"
+    )
+
 
 class BatchTranslationResponse(BaseModel):
     items: List[SentenceTranslation]
@@ -96,23 +105,24 @@ class TextBlock(BaseModel):
 import html
 import re
 
+
 def safe_word_annotation(original_text: str, words: List[WordTranslation]) -> str:
     # 1. 原文全体を先にエスケープ
     escaped_text = html.escape(original_text)
-    
+
     # 2. 単語長が長い順（熟語優先）にソート
     sorted_words = sorted(words, key=lambda x: len(x.word), reverse=True)
-    
+
     for item in sorted_words:
         target_word = html.escape(item.word)
         # 属性値用に引用符等を二重エスケープ
         meaning = html.escape(item.context_meaning, quote=True)
-        
+
         # \b による単語境界マッチ（英数字以外の境界も考慮）
-        pattern = re.compile(rf'\b({re.escape(target_word)})\b', re.IGNORECASE)
+        pattern = re.compile(rf"\b({re.escape(target_word)})\b", re.IGNORECASE)
         replacement = f'<span class="word-hover" data-meaning="{meaning}">\\1</span>'
         escaped_text = pattern.sub(replacement, escaped_text)
-        
+
     return escaped_text
 ```
 

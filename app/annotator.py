@@ -16,7 +16,9 @@ _PROTECTED_SPAN_RE = re.compile(
 )
 
 
-def _substitute_outside_tags(text: str, pattern: re.Pattern[str], replacement: str) -> str:
+def _substitute_outside_tags(
+    text: str, pattern: re.Pattern[str], replacement: str
+) -> str:
     parts = _PROTECTED_SPAN_RE.split(text)
     for index, part in enumerate(parts):
         if part.startswith('<span class="word-hover"'):
@@ -59,7 +61,9 @@ def safe_word_annotation(original_text: str, words: List[WordTranslation]) -> st
 
         # \b による単語境界マッチ（英数字以外の境界も考慮）
         pattern = re.compile(rf"\b({re.escape(target_word)})\b", re.IGNORECASE)
-        replacement = f'<span class="word-hover" data-meaning="{meaning_for_repl}">\\1</span>'
+        replacement = (
+            f'<span class="word-hover" data-meaning="{meaning_for_repl}">\\1</span>'
+        )
         escaped_text = _substitute_outside_tags(escaped_text, pattern, replacement)
 
     return escaped_text

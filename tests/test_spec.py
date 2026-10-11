@@ -101,11 +101,18 @@ class AnnotationTests(unittest.TestCase):
 class ParserTests(unittest.TestCase):
     def test_paragraph_rules(self) -> None:
         blocks = markdown_to_blocks(SAMPLE_MARKDOWN)
-        self.assertEqual([block.type for block in blocks], ["heading", "sentence", "sentence", "table", "heading", "sentence"])
-        self.assertEqual([block.id for block in blocks], ["b-1", "b-2", "b-3", "b-4", "b-5", "b-6"])
+        self.assertEqual(
+            [block.type for block in blocks],
+            ["heading", "sentence", "sentence", "table", "heading", "sentence"],
+        )
+        self.assertEqual(
+            [block.id for block in blocks], ["b-1", "b-2", "b-3", "b-4", "b-5", "b-6"]
+        )
         self.assertEqual(blocks[0].original_text, "Attention Is All You Need")
         self.assertEqual(blocks[0].level, 1)
-        self.assertEqual(blocks[1].original_text, "This paper presents a new architecture.")
+        self.assertEqual(
+            blocks[1].original_text, "This paper presents a new architecture."
+        )
         self.assertEqual(blocks[2].original_text, "It relies solely on attention.")
         self.assertTrue(blocks[3].original_text.startswith("| Model |"))
         self.assertIn("| --- |", blocks[3].original_text)
@@ -117,7 +124,9 @@ class ParserTests(unittest.TestCase):
         document = pymupdf.open()
         page = document.new_page()
         page.insert_text((72, 80), "Attention Is All You Need", fontsize=22)
-        page.insert_text((72, 130), "This paper presents a new architecture.", fontsize=11)
+        page.insert_text(
+            (72, 130), "This paper presents a new architecture.", fontsize=11
+        )
         payload = document.tobytes()
         document.close()
 
@@ -138,18 +147,26 @@ class HtmlTests(unittest.TestCase):
                 translated="本論文は新しい構造を提案する。",
                 words=[
                     WordTranslation(word="architecture", context_meaning="構造"),
-                    WordTranslation(word="new architecture", context_meaning="新しい構造"),
+                    WordTranslation(
+                        word="new architecture", context_meaning="新しい構造"
+                    ),
                 ],
             ),
-            "b-3": SentenceTranslation(id="b-3", translated="注意機構だけに依存する。", words=[]),
+            "b-3": SentenceTranslation(
+                id="b-3", translated="注意機構だけに依存する。", words=[]
+            ),
             "b-4": SentenceTranslation(
                 id="b-4",
                 translated="| モデル | BLEU |\n| --- | --- |\n| Transformer | 28.4 |",
                 words=[WordTranslation(word="Transformer", context_meaning="変換器")],
             ),
-            "b-1": SentenceTranslation(id="b-1", translated="注意機構こそがすべて", words=[]),
+            "b-1": SentenceTranslation(
+                id="b-1", translated="注意機構こそがすべて", words=[]
+            ),
             "b-5": SentenceTranslation(id="b-5", translated="結論", words=[]),
-            "b-6": SentenceTranslation(id="b-6", translated="今後の課題が残る。", words=[]),
+            "b-6": SentenceTranslation(
+                id="b-6", translated="今後の課題が残る。", words=[]
+            ),
         }
         apply_translations(blocks, results)
         document = build_html(blocks, title="paper")
@@ -201,21 +218,35 @@ class TranslatorTests(unittest.TestCase):
                 await release.wait()
                 state["current"] -= 1
                 self.assert_shape(kwargs, payload)
-                items = [{"id": row["id"], "translated": "訳", "words": []} for row in payload]
-                block = SimpleNamespace(type="tool_use", name="submit_translations", input={"items": items})
-                return SimpleNamespace(stop_reason="end_turn", content=[block], usage=None)
+                items = [
+                    {"id": row["id"], "translated": "訳", "words": []}
+                    for row in payload
+                ]
+                block = SimpleNamespace(
+                    type="tool_use", name="submit_translations", input={"items": items}
+                )
+                return SimpleNamespace(
+                    stop_reason="end_turn", content=[block], usage=None
+                )
 
             @staticmethod
             def assert_shape(kwargs, payload):
                 assert kwargs["model"] == MODEL_NAME
                 assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
                 assert kwargs["tools"][0]["cache_control"] == {"type": "ephemeral"}
-                assert kwargs["tool_choice"] == {"type": "tool", "name": "submit_translations"}
+                assert kwargs["tool_choice"] == {
+                    "type": "tool",
+                    "name": "submit_translations",
+                }
                 assert payload
 
         fake = SimpleNamespace(messages=FakeMessages())
         blocks = [
-            TextBlock(id=f"b-{index}", type="sentence", original_text=f"Sentence {index} mentions attention.")
+            TextBlock(
+                id=f"b-{index}",
+                type="sentence",
+                original_text=f"Sentence {index} mentions attention.",
+            )
             for index in range(1, BATCH_SIZE * 5 + 6)
         ]
 
@@ -239,10 +270,16 @@ class TranslatorTests(unittest.TestCase):
             async def create(self, **kwargs):
                 payload = json.loads(kwargs["messages"][0]["content"].split("\n", 1)[1])
                 if len(payload) > 1:
-                    return SimpleNamespace(stop_reason="max_tokens", content=[], usage=None)
+                    return SimpleNamespace(
+                        stop_reason="max_tokens", content=[], usage=None
+                    )
                 items = [{"id": payload[0]["id"], "translated": "分割訳", "words": []}]
-                block = SimpleNamespace(type="tool_use", name="submit_translations", input={"items": items})
-                return SimpleNamespace(stop_reason="end_turn", content=[block], usage=None)
+                block = SimpleNamespace(
+                    type="tool_use", name="submit_translations", input={"items": items}
+                )
+                return SimpleNamespace(
+                    stop_reason="end_turn", content=[block], usage=None
+                )
 
         fake = SimpleNamespace(messages=FakeMessages())
         blocks = [
@@ -281,7 +318,12 @@ class ApiTests(unittest.TestCase):
             self.assertTrue(pdf_bytes.startswith(b"%PDF"))
             return [
                 TextBlock(id="b-1", type="heading", original_text="Results", level=1),
-                TextBlock(id="b-2", type="sentence", original_text="The model uses attention.", level=0),
+                TextBlock(
+                    id="b-2",
+                    type="sentence",
+                    original_text="The model uses attention.",
+                    level=0,
+                ),
                 TextBlock(
                     id="b-3",
                     type="table",
@@ -296,13 +338,22 @@ class ApiTests(unittest.TestCase):
             for block in blocks:
                 words = []
                 if "attention" in block.original_text:
-                    words.append(WordTranslation(word="attention", context_meaning="注意"))
+                    words.append(
+                        WordTranslation(word="attention", context_meaning="注意")
+                    )
                 if block.type == "table":
-                    words.append(WordTranslation(word="Transformer", context_meaning="変換器"))
-                rendered[block.id] = SentenceTranslation(id=block.id, translated=f"訳:{block.type}", words=words)
+                    words.append(
+                        WordTranslation(word="Transformer", context_meaning="変換器")
+                    )
+                rendered[block.id] = SentenceTranslation(
+                    id=block.id, translated=f"訳:{block.type}", words=words
+                )
             return rendered
 
-        with patch("app.jobs.parse_pdf_to_blocks", fake_parse), patch("app.jobs.translate_blocks", fake_translate):
+        with (
+            patch("app.jobs.parse_pdf_to_blocks", fake_parse),
+            patch("app.jobs.translate_blocks", fake_translate),
+        ):
             with TestClient(app) as client:
                 rejected = client.post(
                     "/api/translate",
@@ -321,7 +372,9 @@ class ApiTests(unittest.TestCase):
 
                 pending = create_job("pending.pdf")
                 pending.status = "translating"
-                self.assertEqual(client.get(f"/api/download/{pending.id}").status_code, 409)
+                self.assertEqual(
+                    client.get(f"/api/download/{pending.id}").status_code, 409
+                )
 
                 created = client.post(
                     "/api/translate",
@@ -339,7 +392,9 @@ class ApiTests(unittest.TestCase):
                 downloaded = client.get(f"/api/download/{job_id}")
                 self.assertEqual(downloaded.status_code, 200)
                 self.assertIn("text/html", downloaded.headers["content-type"])
-                self.assertIn("filename*=UTF-8''", downloaded.headers["content-disposition"])
+                self.assertIn(
+                    "filename*=UTF-8''", downloaded.headers["content-disposition"]
+                )
                 html = downloaded.text
                 self.assertIn('class="word-hover"', html)
                 self.assertIn('data-meaning="注意"', html)
@@ -363,7 +418,10 @@ class ApiTests(unittest.TestCase):
         async def fake_translate(blocks, on_progress=None):
             raise RuntimeError("モデルが応答しませんでした。")
 
-        with patch("app.jobs.parse_pdf_to_blocks", fake_parse), patch("app.jobs.translate_blocks", fake_translate):
+        with (
+            patch("app.jobs.parse_pdf_to_blocks", fake_parse),
+            patch("app.jobs.translate_blocks", fake_translate),
+        ):
             with TestClient(app) as client:
                 created = client.post(
                     "/api/translate",
@@ -387,7 +445,9 @@ class JobDirectTests(unittest.TestCase):
         self.assertEqual(job.progress, 0)
 
         def fake_parse(pdf_bytes: bytes):
-            return [TextBlock(id="b-1", type="sentence", original_text="Attention matters.")]
+            return [
+                TextBlock(id="b-1", type="sentence", original_text="Attention matters.")
+            ]
 
         async def fake_translate(blocks, on_progress=None):
             if on_progress:
@@ -400,7 +460,10 @@ class JobDirectTests(unittest.TestCase):
                 )
             }
 
-        with patch("app.jobs.parse_pdf_to_blocks", fake_parse), patch("app.jobs.translate_blocks", fake_translate):
+        with (
+            patch("app.jobs.parse_pdf_to_blocks", fake_parse),
+            patch("app.jobs.translate_blocks", fake_translate),
+        ):
             asyncio.run(process_job(job.id, b"%PDF-1.4"))
         self.assertEqual(job.status, "completed")
         self.assertIn("注意が重要だ。", job.html or "")

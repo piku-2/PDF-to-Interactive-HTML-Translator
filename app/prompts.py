@@ -24,12 +24,15 @@ SYSTEM_PROMPT = """あなたは英語の論文・技術文書・レポートを�
 
 # OpenAI-compatible APIs require the lowercase word "json" somewhere in the prompt
 # when response_format is json_object.
-JSON_SYSTEM_PROMPT = SYSTEM_PROMPT + """
+JSON_SYSTEM_PROMPT = (
+    SYSTEM_PROMPT
+    + """
 応答は json オブジェクト1個だけです。説明、前置き、コードフェンスは禁止です。
 json の形:
 {"items":[{"id":"b-1","translated":"日本語","words":[{"word":"term","context_meaning":"この文脈の意味"}]}]}
 words が無いブロックは "words": [] にしてください。
 """
+)
 
 ANTHROPIC_TOOL = {
     "name": "submit_translations",
@@ -71,13 +74,22 @@ ANTHROPIC_TOOL = {
 
 
 def block_payload(blocks: list[TextBlock]) -> str:
-    payload = [{"id": block.id, "type": block.type, "text": block.original_text} for block in blocks]
+    payload = [
+        {"id": block.id, "type": block.type, "text": block.original_text}
+        for block in blocks
+    ]
     return json.dumps(payload, ensure_ascii=False)
 
 
 def anthropic_user_text(blocks: list[TextBlock]) -> str:
-    return "次のブロックを仕様どおりに翻訳し、submit_translations で返してください。\n" + block_payload(blocks)
+    return (
+        "次のブロックを仕様どおりに翻訳し、submit_translations で返してください。\n"
+        + block_payload(blocks)
+    )
 
 
 def json_user_text(blocks: list[TextBlock]) -> str:
-    return "次のブロックを仕様どおりに翻訳し、json だけを返してください。\n" + block_payload(blocks)
+    return (
+        "次のブロックを仕様どおりに翻訳し、json だけを返してください。\n"
+        + block_payload(blocks)
+    )

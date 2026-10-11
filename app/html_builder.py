@@ -69,12 +69,16 @@ def _view_block(block: TextBlock) -> ViewBlock:
     level = block.level if block.type == "heading" else 0
     tag = f"h{min(max(level, 1), 6)}" if block.type == "heading" else "div"
     if block.type == "table":
-        original = Markup(block.annotated_html or markdown_table_to_html(block.original_text, []))
+        original = Markup(
+            block.annotated_html or markdown_table_to_html(block.original_text, [])
+        )
         translated_source = (block.translated_text or "").strip()
         if translated_source:
             translated = Markup(markdown_table_to_html(translated_source, []))
         else:
-            translated = Markup('<div class="table-container"><p class="missing">（訳なし）</p></div>')
+            translated = Markup(
+                '<div class="table-container"><p class="missing">（訳なし）</p></div>'
+            )
         return ViewBlock(
             id=block.id,
             type=block.type,

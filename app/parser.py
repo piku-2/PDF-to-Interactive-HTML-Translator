@@ -98,7 +98,9 @@ def markdown_to_blocks(markdown: str) -> list[TextBlock]:
         if len(lines) == 1 and _RULE_RE.fullmatch(lines[0]):
             continue
 
-        if any("<table" in line.lower() for line in lines) or all(_is_table_line(line) for line in lines):
+        if any("<table" in line.lower() for line in lines) or all(
+            _is_table_line(line) for line in lines
+        ):
             add("table", "\n".join(lines))
             continue
 

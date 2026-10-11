@@ -53,7 +53,11 @@ def reset_jobs() -> None:
 
 
 def active_job_count() -> int:
-    return sum(1 for job in _jobs.values() if job.status in {"queued", "parsing", "translating"})
+    return sum(
+        1
+        for job in _jobs.values()
+        if job.status in {"queued", "parsing", "translating"}
+    )
 
 
 def create_job(filename: str) -> Job:
@@ -81,7 +85,8 @@ def _evict_expired() -> None:
     stale = [
         job_id
         for job_id, job in _jobs.items()
-        if job.status in {"completed", "failed"} and now - job.updated_at > JOB_TTL_SECONDS
+        if job.status in {"completed", "failed"}
+        and now - job.updated_at > JOB_TTL_SECONDS
     ]
     for job_id in stale:
         del _jobs[job_id]

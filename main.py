@@ -26,7 +26,9 @@ def configure_console_logging() -> None:
     for name in ("app", "main"):
         named = logging.getLogger(name)
         named.setLevel(logging.INFO)
-        if not any(isinstance(handler, logging.StreamHandler) for handler in named.handlers):
+        if not any(
+            isinstance(handler, logging.StreamHandler) for handler in named.handlers
+        ):
             handler = logging.StreamHandler()
             handler.setFormatter(formatter)
             named.addHandler(handler)
@@ -61,7 +63,9 @@ async def translate(
 ) -> TranslateAccepted:
     filename = file.filename or ""
     if not filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="PDFファイルをアップロードしてください。")
+        raise HTTPException(
+            status_code=400, detail="PDFファイルをアップロードしてください。"
+        )
     chunks: list[bytes] = []
     size = 0
     while True:
@@ -70,16 +74,23 @@ async def translate(
             break
         size += len(chunk)
         if size > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="ファイルサイズが100MBを超えています。")
+            raise HTTPException(
+                status_code=413, detail="ファイルサイズが100MBを超えています。"
+            )
         chunks.append(chunk)
     payload = b"".join(chunks)
     if b"%PDF" not in payload[:1024]:
         raise HTTPException(status_code=400, detail="PDFとして読み取れません。")
     if too_many_jobs():
-        raise HTTPException(status_code=429, detail="処理中のジョブが上限に達しています。しばらく待ってから再度お試しください。")
+        raise HTTPException(
+            status_code=429,
+            detail="処理中のジョブが上限に達しています。しばらく待ってから再度お試しください。",
+        )
     job = create_job(filename)
     background_tasks.add_task(process_job, job.id, payload)
-    logger.info("queued job=%s filename=%s bytes=%s", job.id, job.filename, len(payload))
+    logger.info(
+        "queued job=%s filename=%s bytes=%s", job.id, job.filename, len(payload)
+    )
     return TranslateAccepted(job_id=job.id)
 
 
@@ -105,7 +116,9 @@ async def download(job_id: str) -> Response:
     if job.status != "completed" or not job.html:
         raise HTTPException(status_code=409, detail="翻訳はまだ完了していません。")
     encoded = quote(job.download_name, safe="")
-    disposition = f"attachment; filename=\"translation.html\"; filename*=UTF-8''{encoded}"
+    disposition = (
+        f"attachment; filename=\"translation.html\"; filename*=UTF-8''{encoded}"
+    )
     return Response(
         content=job.html,
         media_type="text/html; charset=utf-8",

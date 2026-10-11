@@ -67,7 +67,10 @@ async def translate_blocks(
         raise RuntimeError(_NO_KEY)
 
     failed: set[str] = set()
-    batches = [blocks[index : index + BATCH_SIZE] for index in range(0, len(blocks), BATCH_SIZE)]
+    batches = [
+        blocks[index : index + BATCH_SIZE]
+        for index in range(0, len(blocks), BATCH_SIZE)
+    ]
     total = len(batches)
     completed = 0
     merged: dict[str, SentenceTranslation] = {}
@@ -100,7 +103,9 @@ async def translate_batch_resilient(
         items = await _request_translation(blocks, failed)
     except OutputTooLarge:
         if len(blocks) == 1:
-            raise RuntimeError(f"ブロック {blocks[0].id} の翻訳結果が出力上限を超えました。")
+            raise RuntimeError(
+                f"ブロック {blocks[0].id} の翻訳結果が出力上限を超えました。"
+            )
         middle = len(blocks) // 2
         left = await translate_batch_resilient(blocks[:middle], failed)
         right = await translate_batch_resilient(blocks[middle:], failed)

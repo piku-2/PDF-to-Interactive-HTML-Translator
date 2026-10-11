@@ -66,9 +66,7 @@ def markdown_table_to_html(
     rows = _rows_from_source(source)
     if not rows:
         return (
-            '<div class="table-container"><pre>'
-            + html.escape(source)
-            + "</pre></div>"
+            '<div class="table-container"><pre>' + html.escape(source) + "</pre></div>"
         )
     width = max(len(row) for row in rows)
     word_list = list(words or [])
@@ -120,7 +118,11 @@ def _rows_from_markdown(source: str) -> list[list[str]]:
         cells = _split_row(line)
         if not cells:
             continue
-        if all(_SEPARATOR_CELL.fullmatch(cell.replace(" ", "")) for cell in cells if cell != ""):
+        if all(
+            _SEPARATOR_CELL.fullmatch(cell.replace(" ", ""))
+            for cell in cells
+            if cell != ""
+        ):
             continue
         rows.append(cells)
     return rows
