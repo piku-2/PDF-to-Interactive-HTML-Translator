@@ -118,6 +118,34 @@ class ParserTests(unittest.TestCase):
         self.assertIn("| --- |", blocks[3].original_text)
         self.assertEqual(blocks[4].level, 2)
 
+    def test_code_fences_and_quotes_keep_their_types(self) -> None:
+        blocks = markdown_to_blocks(
+            "\n".join(
+                [
+                    "### Details",
+                    "",
+                    "> Quoted claim. Another quoted sentence.",
+                    "",
+                    "```",
+                    "def add(a, b):",
+                    "",
+                    "    return a + b",
+                    "```",
+                    "",
+                    "Plain sentence after the fence.",
+                ]
+            )
+        )
+        self.assertEqual(
+            [block.type for block in blocks],
+            ["heading", "quote", "quote", "code", "sentence"],
+        )
+        self.assertEqual(blocks[0].level, 3)
+        self.assertEqual(blocks[1].original_text, "Quoted claim.")
+        self.assertEqual(blocks[2].original_text, "Another quoted sentence.")
+        self.assertIn("\n\n    return a + b", blocks[3].original_text)
+        self.assertNotIn("```", blocks[3].original_text)
+
     def test_real_pdf_roundtrip(self) -> None:
         import pymupdf
 
@@ -171,9 +199,13 @@ class HtmlTests(unittest.TestCase):
         apply_translations(blocks, results)
         document = build_html(blocks, title="paper")
 
-        self.assertIn('class="mode-default"', document)
+        self.assertIn('class="mode-word-hover"', document)
+        self.assertIn("mode-sentence-hover", document)
         self.assertIn("mode-full-ja", document)
-        self.assertIn("mode-block", document)
+        self.assertIn("sentence-block", document)
+        self.assertIn("sentence-pop", document)
+        self.assertIn("max-width: 860px", document)
+        self.assertIn("line-height: 1.75", document)
         self.assertIn('data-theme="system"', document)
         self.assertIn("--base-font-size", document)
         self.assertIn('class="table-container"', document)
@@ -191,6 +223,32 @@ class HtmlTests(unittest.TestCase):
         self.assertNotIn("https://", document)
         self.assertEqual(document.count("<span"), document.count("</span>"))
 
+    def test_code_and_quote_render_inside_the_document(self) -> None:
+        blocks = markdown_to_blocks(
+            "\n".join(
+                [
+                    "> Keep the claim.",
+                    "",
+                    "```",
+                    "return x",
+                    "```",
+                ]
+            )
+        )
+        apply_translations(
+            blocks,
+            {
+                "b-1": SentenceTranslation(id="b-1", translated="主張を保て。", words=[]),
+                "b-2": SentenceTranslation(id="b-2", translated="return x", words=[]),
+            },
+        )
+        document = build_html(blocks, title="snippet")
+        self.assertIn("<blockquote", document)
+        self.assertIn("<pre", document)
+        self.assertIn("return x", document)
+        self.assertIn("主張を保て。", document)
+        self.assertIn("sentence-pop", document)
+
 
 class TranslatorTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -201,7 +259,8 @@ class TranslatorTests(unittest.TestCase):
 
     def test_client_retries(self) -> None:
         client = get_client()
-        self.assertEqual(client.max_retries, MAX_RETRIES)
+        self.assertEqual(MAX_RETRIES, 0)
+        self.assertEqual(client.max_retries, 0)
 
     def test_batches_of_25_and_semaphore(self) -> None:
         state = {"current": 0, "peak": 0, "sizes": []}
@@ -400,7 +459,8 @@ class ApiTests(unittest.TestCase):
                 self.assertIn('data-meaning="注意"', html)
                 self.assertIn('class="table-container"', html)
                 self.assertIn("訳:sentence", html)
-                self.assertIn("mode-block", html)
+                self.assertIn("mode-sentence-hover", html)
+                self.assertIn("mode-word-hover", html)
                 self.assertIn("--base-font-size", html)
 
         stored = get_job(job_id)

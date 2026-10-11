@@ -93,17 +93,29 @@ def _view_block(block: TextBlock) -> ViewBlock:
     original_fragment = block.annotated_html
     if original_fragment is None:
         original_fragment = html.escape(block.original_text)
-    translated_text = (block.translated_text or "").strip()
+    translated_text = block.translated_text or ""
+    if block.type == "code":
+        translated_text = translated_text.strip("\n")
+    else:
+        translated_text = translated_text.strip()
     if translated_text:
-        translated = Markup(html.escape(translated_text).replace("\n", "<br>"))
+        escaped = html.escape(translated_text)
+        if block.type == "code":
+            translated = Markup(escaped)
+        else:
+            translated = Markup(escaped.replace("\n", "<br>"))
     else:
         translated = Markup('<span class="missing">（訳なし）</span>')
+    if block.type == "code":
+        original_html = Markup(original_fragment)
+    else:
+        original_html = Markup(_breaks_outside_tags(original_fragment))
     return ViewBlock(
         id=block.id,
         type=block.type,
         level=level or 1,
         tag=tag,
-        original_html=Markup(_breaks_outside_tags(original_fragment)),
+        original_html=original_html,
         translated_html=translated,
         toc_original=block.original_text if block.type == "heading" else "",
         toc_translated=translated_text if block.type == "heading" else "",

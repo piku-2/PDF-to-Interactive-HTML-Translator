@@ -24,7 +24,7 @@ _NO_KEY = "有効なLLMのAPIキーが1つも設定されていません。LLM_P
 def get_client() -> anthropic.AsyncAnthropic:
     global _client
     if _client is None:
-        # SPEC 6: exponential backoff is the SDK retry implementation.
+        # SPEC 7: do not retry a 429 or 5xx here. Fallback switches provider.
         _client = anthropic.AsyncAnthropic(max_retries=MAX_RETRIES)
     return _client
 

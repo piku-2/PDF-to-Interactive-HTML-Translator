@@ -8,6 +8,7 @@ from app.models import TextBlock
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _RULE_RE = re.compile(r"[-*_]{3,}")
+_FENCE_RE = re.compile(r"^`{3,}")
 _nltk_ready = False
 
 
@@ -64,24 +65,30 @@ def parse_pdf_to_blocks(pdf_bytes: bytes) -> list[TextBlock]:
 
 
 def markdown_to_blocks(markdown: str) -> list[TextBlock]:
-    """Split Markdown into blocks.
+    """Split Markdown into blocks (SPEC 5.1).
 
-    Blank lines separate paragraphs (SPEC 5.1). A paragraph whose lines start
-    with ``|`` or an HTML ``<table>`` becomes one table block. A line that
-    starts with ``#`` becomes a heading. Everything else is split into
-    sentences with ``nltk.sent_tokenize``.
+    ``#`` / ``##`` / ``###`` become headings at levels 1-3 (deeper marks stay
+    headings too). Lines that start with ``|`` stay one table. A fenced code
+    block stays one ``code`` block, including blank lines inside the fence.
+    Lines that start with ``>`` become ``quote`` blocks, split into sentences.
+    Other prose is split with ``nltk.sent_tokenize``.
     """
     ensure_nltk()
     from nltk.tokenize import sent_tokenize
 
-    normalized = markdown.replace("\r\n", "\n").replace("\r", "\n")
-    paragraphs = re.split(r"\n[ \t]*\n", normalized)
+    lines = markdown.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     blocks: list[TextBlock] = []
+    index = 0
 
-    def add(block_type: str, content: str, level: int = 0) -> None:
-        content = content.strip()
-        if not content:
-            return
+    def add(block_type: str, content: str, level: int = 0, *, keep_indent: bool = False) -> None:
+        if keep_indent:
+            content = content.strip("\n")
+            if not content.strip():
+                return
+        else:
+            content = content.strip()
+            if not content:
+                return
         blocks.append(
             TextBlock(
                 id=f"b-{len(blocks) + 1}",
@@ -91,56 +98,100 @@ def markdown_to_blocks(markdown: str) -> list[TextBlock]:
             )
         )
 
-    for paragraph in paragraphs:
-        lines = [line.strip() for line in paragraph.split("\n") if line.strip()]
-        if not lines:
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if not stripped:
+            index += 1
             continue
-        if len(lines) == 1 and _RULE_RE.fullmatch(lines[0]):
+        if _FENCE_RE.match(stripped):
+            index += 1
+            body: list[str] = []
+            while index < len(lines) and not _FENCE_RE.match(lines[index].strip()):
+                body.append(lines[index])
+                index += 1
+            if index < len(lines):
+                index += 1
+            add("code", "\n".join(body), keep_indent=True)
+            continue
+        if _RULE_RE.fullmatch(stripped):
+            index += 1
             continue
 
-        if any("<table" in line.lower() for line in lines) or all(
-            _is_table_line(line) for line in lines
-        ):
-            add("table", "\n".join(lines))
+        heading = _HEADING_RE.match(stripped)
+        if heading and not stripped.startswith("|"):
+            level = min(len(heading.group(1)), 6)
+            add("heading", heading.group(2), level=level)
+            index += 1
             continue
 
-        text_buffer: list[str] = []
-        table_buffer: list[str] = []
+        if stripped.lower().startswith("<table") or _is_table_line(stripped):
+            collected: list[str] = []
+            if stripped.lower().startswith("<table"):
+                while index < len(lines):
+                    collected.append(lines[index].strip())
+                    closed = "</table>" in lines[index].lower()
+                    index += 1
+                    if closed:
+                        break
+            else:
+                while index < len(lines) and _is_table_line(lines[index].strip()):
+                    collected.append(lines[index].strip())
+                    index += 1
+            add("table", "\n".join(collected))
+            continue
 
-        def flush_text() -> None:
-            if not text_buffer:
-                return
-            chunk = "\n".join(text_buffer).strip()
-            text_buffer.clear()
-            if not chunk or _RULE_RE.fullmatch(chunk):
-                return
+        if stripped.startswith(">"):
+            quote_lines: list[str] = []
+            while index < len(lines):
+                current = lines[index].strip()
+                if current.startswith(">"):
+                    quote_lines.append(_strip_quote(lines[index]))
+                    index += 1
+                    continue
+                next_index = index + 1
+                if (
+                    not current
+                    and next_index < len(lines)
+                    and lines[next_index].strip().startswith(">")
+                ):
+                    index += 1
+                    continue
+                break
+            quote_text = " ".join(part.strip() for part in quote_lines if part.strip())
+            for sentence in sent_tokenize(quote_text, language="english"):
+                add("quote", sentence)
+            continue
+
+        paragraph: list[str] = []
+        while index < len(lines) and not _is_structural(lines[index]):
+            paragraph.append(lines[index].strip())
+            index += 1
+        chunk = "\n".join(paragraph).strip()
+        if chunk and not _RULE_RE.fullmatch(chunk):
             for sentence in sent_tokenize(chunk, language="english"):
                 add("sentence", sentence)
 
-        def flush_table() -> None:
-            if not table_buffer:
-                return
-            add("table", "\n".join(table_buffer))
-            table_buffer.clear()
-
-        for line in lines:
-            heading = _HEADING_RE.match(line)
-            if heading and not line.startswith("|"):
-                flush_text()
-                flush_table()
-                add("heading", heading.group(2), level=len(heading.group(1)))
-                continue
-            if _is_table_line(line):
-                flush_text()
-                table_buffer.append(line)
-                continue
-            flush_table()
-            text_buffer.append(line)
-
-        flush_text()
-        flush_table()
-
     return blocks
+
+
+def _is_structural(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped or _RULE_RE.fullmatch(stripped):
+        return True
+    if _FENCE_RE.match(stripped) or stripped.startswith(">"):
+        return True
+    if _is_table_line(stripped) or stripped.lower().startswith("<table"):
+        return True
+    return _HEADING_RE.match(stripped) is not None and not stripped.startswith("|")
+
+
+def _strip_quote(line: str) -> str:
+    stripped = line.strip()
+    if stripped.startswith(">"):
+        stripped = stripped[1:]
+        if stripped.startswith(" "):
+            stripped = stripped[1:]
+    return stripped
 
 
 def _is_table_line(line: str) -> bool:

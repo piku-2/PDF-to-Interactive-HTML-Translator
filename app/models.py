@@ -16,9 +16,10 @@ class WordTranslation(BaseModel):
 
 class SentenceTranslation(BaseModel):
     id: str = Field(description="入力ブロックのID (例: 'b-12')")
-    translated: str = Field(description="1文の自然な日本語訳")
+    translated: str = Field(description="1文の自然で正確な日本語訳")
     words: List[WordTranslation] = Field(
-        default_factory=list, description="専門用語や難解語の文脈訳（0〜3個）"
+        default_factory=list,
+        description="読者がつまずきそうな重要単語・専門用語・熟語・動詞句（1文につき可能な限り網羅的に3〜8個以上抽出すること）",
     )
 
 
@@ -28,11 +29,11 @@ class BatchTranslationResponse(BaseModel):
 
 class TextBlock(BaseModel):
     id: str
-    type: Literal["heading", "sentence", "table"]
+    # code and quote are the markings from SPEC 5.1. Headings use level 1-3.
+    type: Literal["heading", "sentence", "table", "code", "quote"]
     original_text: str
     annotated_html: Optional[str] = None
     translated_text: Optional[str] = None
-    # Heading depth (1-6). Sentences and tables keep 0.
     level: int = 0
 
 

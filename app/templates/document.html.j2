@@ -78,7 +78,7 @@ try {
     background: var(--bg);
     color: var(--ink);
     font-family: var(--sans);
-    line-height: 1.6;
+    line-height: 1.75;
   }
   button, input { font: inherit; color: inherit; }
   button { cursor: pointer; }
@@ -140,8 +140,8 @@ try {
   .toc a[data-level="6"] { padding-left: 2.05rem; }
   .toc a:hover, .toc a.active { background: var(--accent-soft); }
   .toc-empty { color: var(--muted); font-size: 0.92rem; margin: 0.4rem 0.55rem; }
-  body.mode-default .toc .translated,
-  body.mode-block .toc .translated,
+  body.mode-word-hover .toc .translated,
+  body.mode-sentence-hover .toc .translated,
   body.mode-full-ja .toc .original { display: none; }
 
   .workspace { min-width: 0; }
@@ -202,40 +202,66 @@ try {
   }
 
   .paper {
-    max-width: 1080px;
+    max-width: 860px;
     margin: 0 auto;
-    padding: 2.2rem 1.4rem 4.5rem;
+    padding: 2.4rem 1.6rem 4.8rem;
     font-size: var(--base-font-size);
+    line-height: 1.75;
   }
-  .block { scroll-margin-top: 5.2rem; }
-  .heading { font-family: var(--serif); line-height: 1.3; margin: 2rem 0 0.8rem; }
-  .heading .original, .sentence .original { font-family: var(--serif); }
-  .heading .translated, .sentence .translated { font-family: var(--sans); }
-  h1.heading { font-size: 2em; margin-top: 0.2rem; }
-  h2.heading { font-size: 1.45em; }
-  h3.heading { font-size: 1.2em; }
-  .sentence { margin: 0.95rem 0; }
-  .sentence .original, .sentence .translated { margin: 0; }
+  .block { scroll-margin-top: 5.2rem; position: relative; }
+  .heading { font-family: var(--serif); line-height: 1.35; margin: 2.15rem 0 0.9rem; }
+  .heading .original, .sentence .original, .quote .original { font-family: var(--serif); }
+  .heading .translated, .sentence .translated, .quote .translated,
+  .sentence-pop { font-family: var(--sans); }
+  h1.heading { font-size: 2.05rem; margin-top: 0.2rem; border-bottom: 2px solid var(--ink); padding-bottom: 0.4rem; }
+  h2.heading { font-size: 1.55rem; border-bottom: 1px solid var(--line); padding-bottom: 0.32rem; }
+  h3.heading { font-size: 1.25rem; border-bottom: 1px solid var(--line); padding-bottom: 0.24rem; }
+  h4.heading, h5.heading, h6.heading { font-size: 1.08rem; }
+  .sentence, .quote { margin: 0.95rem 0; }
+  .sentence .original, .sentence .translated,
+  .quote .original, .quote .translated { margin: 0; }
   .missing { color: var(--muted); font-style: italic; }
 
-  body.mode-default .translated,
+  body.mode-word-hover .translated,
+  body.mode-sentence-hover .translated,
   body.mode-full-ja .original { display: none; }
-  body.mode-block .sentence,
-  body.mode-block .table {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem 1.4rem;
-    align-items: start;
+
+  .sentence-pop {
+    display: none;
+    margin: 0 0 0.55rem;
+    padding: 0.75rem 0.9rem;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    line-height: 1.75;
   }
-  body.mode-block .sentence { padding-bottom: 0.85rem; border-bottom: 1px solid var(--line); }
-  body.mode-block .translated { color: var(--ink); }
-  body.mode-block .heading .translated {
+  body.mode-sentence-hover .sentence-block:hover > .sentence-pop,
+  body.mode-sentence-hover .sentence-block:focus-within > .sentence-pop,
+  body.mode-sentence-hover .sentence-block.pop-open > .sentence-pop {
     display: block;
-    margin-top: 0.3rem;
-    font-size: 0.72em;
-    color: var(--muted);
-    font-weight: 500;
   }
+  .sentence-pop .table-container { margin: 0; }
+
+  blockquote.quote {
+    margin: 1.15rem 0;
+    padding: 0.2rem 0 0.2rem 1rem;
+    border-left: 3px solid var(--accent);
+  }
+  .block.code pre {
+    margin: 0.85rem 0;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    background: var(--sidebar);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+    font-size: 0.86em;
+    line-height: 1.55;
+  }
+  .block.code .sentence-pop { white-space: pre-wrap; font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace; }
 
   .word-hover {
     text-decoration: underline dotted var(--accent);
@@ -288,12 +314,11 @@ try {
   table { border-collapse: collapse; width: 100%; min-width: 28rem; }
   th, td {
     padding: 0.55rem 0.75rem;
-    border-bottom: 1px solid var(--line);
+    border: 1px solid var(--line);
     text-align: left;
     vertical-align: top;
   }
   th { background: var(--accent-soft); font-weight: 600; }
-  tr:last-child td { border-bottom: 0; }
   pre {
     margin: 0;
     padding: 0.8rem 1rem;
@@ -323,8 +348,7 @@ try {
       z-index: 11;
     }
     .doc-title { max-width: 46vw; }
-    body.mode-block .sentence,
-    body.mode-block .table { grid-template-columns: 1fr; }
+    .paper { padding: 1.4rem 1rem 3.5rem; }
     table { min-width: 0; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -336,17 +360,18 @@ try {
     .app { display: block; }
     body { background: white; color: black; }
     .paper { max-width: none; }
-    body.mode-default .translated,
-    body.mode-full-ja .original { display: revert; }
-    .sentence, .table { display: block; }
+    .sentence-pop { display: none !important; }
+    .original, .translated { display: block; }
   }
 </style>
 </head>
-<body class="mode-default">
+<body class="mode-word-hover">
 <script>
 try {
   var storedMode = localStorage.getItem("pdf2html.mode");
-  if (storedMode === "mode-default" || storedMode === "mode-full-ja" || storedMode === "mode-block") {
+  if (storedMode === "mode-default") storedMode = "mode-word-hover";
+  if (storedMode === "mode-block") storedMode = "mode-sentence-hover";
+  if (storedMode === "mode-word-hover" || storedMode === "mode-sentence-hover" || storedMode === "mode-full-ja") {
     document.body.className = storedMode;
   }
 } catch (error) {}
@@ -379,9 +404,9 @@ document.documentElement.classList.remove("no-js");
       <button type="button" class="icon-button" id="toc-open" aria-label="目次を開く">目次</button>
       <div class="doc-title">{{ title }}</div>
       <div class="segment" role="group" aria-label="表示モード">
-        <button type="button" data-mode="mode-default" aria-pressed="true">原文</button>
-        <button type="button" data-mode="mode-full-ja" aria-pressed="false">日本語</button>
-        <button type="button" data-mode="mode-block" aria-pressed="false">対訳</button>
+        <button type="button" data-mode="mode-word-hover" aria-pressed="true">単語</button>
+        <button type="button" data-mode="mode-sentence-hover" aria-pressed="false">1文</button>
+        <button type="button" data-mode="mode-full-ja" aria-pressed="false">全文</button>
       </div>
       <div class="segment" role="group" aria-label="テーマ">
         <button type="button" data-theme="light" aria-pressed="false">ライト</button>
@@ -397,17 +422,32 @@ document.documentElement.classList.remove("no-js");
     <article class="paper" id="content">
       {% for block in blocks %}
         {% if block.type == "heading" %}
-          <{{ block.tag }} id="{{ block.id }}" class="block heading">
+          <{{ block.tag }} id="{{ block.id }}" class="block sentence-block heading">
+            <span class="sentence-pop">{{ block.translated_html }}</span>
             <span class="original">{{ block.original_html }}</span>
             <span class="translated">{{ block.translated_html }}</span>
           </{{ block.tag }}>
         {% elif block.type == "table" %}
-          <div id="{{ block.id }}" class="block table">
+          <div id="{{ block.id }}" class="block sentence-block table">
+            <div class="sentence-pop">{{ block.translated_html }}</div>
             <div class="original">{{ block.original_html }}</div>
             <div class="translated">{{ block.translated_html }}</div>
           </div>
+        {% elif block.type == "code" %}
+          <div id="{{ block.id }}" class="block sentence-block code">
+            <div class="sentence-pop">{{ block.translated_html }}</div>
+            <pre class="original"><code>{{ block.original_html }}</code></pre>
+            <pre class="translated"><code>{{ block.translated_html }}</code></pre>
+          </div>
+        {% elif block.type == "quote" %}
+          <blockquote id="{{ block.id }}" class="block sentence-block quote">
+            <div class="sentence-pop">{{ block.translated_html }}</div>
+            <p class="original">{{ block.original_html }}</p>
+            <p class="translated">{{ block.translated_html }}</p>
+          </blockquote>
         {% else %}
-          <div id="{{ block.id }}" class="block sentence">
+          <div id="{{ block.id }}" class="block sentence-block sentence">
+            <div class="sentence-pop">{{ block.translated_html }}</div>
             <p class="original">{{ block.original_html }}</p>
             <p class="translated">{{ block.translated_html }}</p>
           </div>
@@ -423,7 +463,7 @@ document.documentElement.classList.remove("no-js");
 (function () {
   var root = document.documentElement;
   var body = document.body;
-  var MODES = ["mode-default", "mode-full-ja", "mode-block"];
+  var MODES = ["mode-word-hover", "mode-sentence-hover", "mode-full-ja"];
   var THEMES = ["light", "dark", "system"];
   var FONT_MIN = 14;
   var FONT_MAX = 28;
@@ -441,9 +481,16 @@ document.documentElement.classList.remove("no-js");
   }
 
   function setMode(mode) {
-    if (MODES.indexOf(mode) === -1) mode = "mode-default";
-    body.classList.remove("mode-default", "mode-full-ja", "mode-block");
+    if (mode === "mode-default") mode = "mode-word-hover";
+    if (mode === "mode-block") mode = "mode-sentence-hover";
+    if (MODES.indexOf(mode) === -1) mode = "mode-word-hover";
+    body.classList.remove("mode-word-hover", "mode-sentence-hover", "mode-full-ja", "mode-default", "mode-block");
     body.classList.add(mode);
+    if (mode !== "mode-sentence-hover") {
+      document.querySelectorAll(".sentence-block.pop-open").forEach(function (node) {
+        node.classList.remove("pop-open");
+      });
+    }
     setPressed("button[data-mode]", "data-mode", mode);
     try { localStorage.setItem("pdf2html.mode", mode); } catch (error) {}
   }
@@ -472,7 +519,7 @@ document.documentElement.classList.remove("no-js");
   document.getElementById("font-dec").addEventListener("click", function () { setFont(currentFont() - 1); });
   document.getElementById("font-inc").addEventListener("click", function () { setFont(currentFont() + 1); });
 
-  var initialMode = "mode-default";
+  var initialMode = "mode-word-hover";
   MODES.forEach(function (mode) {
     if (body.classList.contains(mode)) initialMode = mode;
   });
@@ -547,6 +594,16 @@ document.documentElement.classList.remove("no-js");
     hideTip();
   });
   document.addEventListener("click", function (event) {
+    if (body.classList.contains("mode-sentence-hover") && event.target.closest) {
+      var block = event.target.closest(".sentence-block");
+      if (block && !event.target.closest(".word-hover") && !event.target.closest(".sentence-pop") && !event.target.closest("a")) {
+        var opened = block.classList.contains("pop-open");
+        document.querySelectorAll(".sentence-block.pop-open").forEach(function (node) {
+          node.classList.remove("pop-open");
+        });
+        if (!opened) block.classList.add("pop-open");
+      }
+    }
     var target = event.target.closest ? event.target.closest(".word-hover") : null;
     if (!target) {
       hideTip();

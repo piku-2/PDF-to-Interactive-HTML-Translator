@@ -1,7 +1,7 @@
 # PDF-to-Interactive-HTML Translator 仕様書
 
 ## 1. プロジェクト概要
-アップロードされた英語PDF（論文・技術文書・レポート等）を解析し、インタラクティブ機能（文脈単語ホバー、3表示モード、テーマ切り替え、目次サイドバー）が組み込まれた**1ファイル完結型の日本語対訳HTML**を生成するFastAPIバックエンドWebアプリケーション。
+アップロードされた英語PDF（論文・技術文書・レポート等）を解析し、高度なインタラクティブ機能（文脈単語ホバー、1文ホバー訳、3表示モード切り替え、マルチLLMフォールバック、目次サイドバー）が組み込まれた**1ファイル完結型の高品質日本語対訳HTML**を生成するFastAPIバックエンドWebアプリケーション。
 
 ---
 
@@ -10,50 +10,32 @@
 - **Framework:** FastAPI, Uvicorn
 - **PDF Parsing (Non-AI):** `pymupdf4llm`
 - **Text Splitting:** `nltk` (`nltk.sent_tokenize`)
-- **LLM Engine:** Anthropic Claude Haiku 5.5 (`claude-haiku-5-5`) via `anthropic` Python SDK
-  - `max_retries` 有効化（指数バックオフ）
-  - Message Batches API & Prompt Caching 活用
+- **LLM Engine & Priority Fallback:**
+  - 優先度設定: `.env` の `LLM_PROVIDER_PRIORITY` (デフォルト: `anthropic,gemini,openai,grok,deepseek,kimi,glm,openrouter,nvidia_nim`)
+  - 代表モデル: `claude-haiku-5-5` (Anthropic), `gemini-2.5-flash-lite` (Gemini), `gpt-4o-mini` (OpenAI), `grok-2-latest` (Grok), `deepseek-chat` (DeepSeek)
+  - 全プロバイダー共通で JSON / Structured Outputs を使用
 - **Template Engine:** Jinja2 (HTML/CSS/JS 合成)
 
 ---
 
-## 3. 全体アーキテクチャ & データフロー
+## 3. 3つの表示モードとインタラクティブUIの厳密定義
 
-```
-[ PDF Upload ]
-     │
-     ▼
-[ Step 1: PDF to Structured Text (PyMuPDF4LLM) ]
-     │  - Markdown変換 (見出し, 本文, 表)
-     │
-     ▼
-[ Step 2: Block & Sentence Parsing ]
-     │  - 表 (| ...) はそのまま1ブロック化
-     │  - 通常段落は NLTK で1文ごとに分割して軽量JSON化
-     │
-     ▼
-[ Step 3: LLM Batch Processing (Claude Haiku 5.5) ]
-     │  - 25文単位のバッチ処理 (BackgroundTasks)
-     │  - Structured Output (Tool Use) で和訳 & 文脈単語抽出
-     │
-     ▼
-[ Step 4: HTML Safe Annotation ]
-     │  - html.escape() 通過後の単語境界 (\b) 正規表現置換
-     │  - Longest-first 順置換で部分一致・崩壊を完全防止
-     │
-     ▼
-[ Step 5: HTML Synthesis & Output ]
-     └─ インラインCSS/JS組み込み単一 `.html` ファイル生成
-```
+生成されるHTMLは、コントロールバーの切り替えにより以下の3つのモードへ瞬時に変貌します。
+
+| モード名 | CSSクラス | 画面表示の挙動 | カーソル（ホバー）動作 |
+| :--- | :--- | :--- | :--- |
+| **① 1単語カーソル翻訳** | `mode-word-hover` | **英語原文のみ**を表示。<br>日本語全文は非表示。 | 英文中の対象単語にカーソルを乗せると、**「その単語の文脈訳」**がツールチップで表示される。 |
+| **② 1文カーソル翻訳** | `mode-sentence-hover` | **英語原文のみ**を表示。<br>日本語全文は非表示。 | 1文にカーソルを乗せると、**「その1文全体の日本語訳」**が文章上部にポップアップ/吹き出しで表示される。（単語ホバーも同時に動作） |
+| **③ 全文翻訳** | `mode-full-ja` | **日本語訳のみ**を美しいドキュメント形式で全文表示。 | 原文は非表示。日本語テキストをスムーズに流し読みできる。 |
 
 ---
 
 ## 4. データ構造定義 (Pydantic / JSON Schema)
 
-### 4.1 LLM 出力スキーマ (Tool Use / Structured Output)
+### 4.1 LLM 出力スキーマ
 ```python
-from pydantic import BaseModel, Field
 from typing import List
+from pydantic import BaseModel, Field
 
 
 class WordTranslation(BaseModel):
@@ -67,9 +49,10 @@ class WordTranslation(BaseModel):
 
 class SentenceTranslation(BaseModel):
     id: str = Field(description="入力ブロックのID (例: 'b-12')")
-    translated: str = Field(description="1文の自然な日本語訳")
+    translated: str = Field(description="1文の自然で正確な日本語訳")
     words: List[WordTranslation] = Field(
-        default_factory=list, description="専門用語や難解語の文脈訳（0〜3個）"
+        default_factory=list,
+        description="読者がつまずきそうな重要単語・専門用語・熟語・動詞句（1文につき可能な限り網羅的に3〜8個以上抽出すること）",
     )
 
 
@@ -78,6 +61,7 @@ class BatchTranslationResponse(BaseModel):
 ```
 
 ### 4.2 バックエンド内部ブロックモデル
+
 ```python
 class TextBlock(BaseModel):
     id: str
@@ -91,15 +75,20 @@ class TextBlock(BaseModel):
 
 ## 5. コア処理ロジック仕様
 
-### 5.1 PDF解析 & 文分割 (`parse_pdf_to_blocks`)
+### 5.1 PDF解析 & レイアウト保持 (`parse_pdf_to_blocks`)
+
 1. `pymupdf4llm.to_markdown()` でPDFをMarkdownに変換。
 2. 段落（`\n\n`）単位でループ処理：
-   - `#` で始まる行 ➔ `type="heading"`
-   - `|` で始まる行 ➔ `type="table"`（文分割スキップ）
-   - それ以外 ➔ `nltk.sent_tokenize()` で1文ずつに分解し `type="sentence"`
+* `#`, `##`, `###` ➔ `type="heading"`, `level=1~3`
+* `|` で始まる行 ➔ `type="table"`（文分割スキップ・Markdown表構造を保持）
+* コードブロック (`````) / 引用 (`>`) ➔ 適切なタイプとしてマーキング
+* それ以外の本文 ➔ `nltk.sent_tokenize()` で1文ずつに分解し `type="sentence"`
+
+
 
 ### 5.2 安全な単語ホバーHTMLタグ注入 (`safe_word_annotation`)
-文字列破壊およびHTML崩壊を防ぐため、以下の順序を厳守すること：
+
+HTML構文破壊を防ぐため、以下の順序を厳守すること：
 
 ```python
 import html
@@ -110,15 +99,14 @@ def safe_word_annotation(original_text: str, words: List[WordTranslation]) -> st
     # 1. 原文全体を先にエスケープ
     escaped_text = html.escape(original_text)
 
-    # 2. 単語長が長い順（熟語優先）にソート
+    # 2. 単語長が長い順（熟語・複合語優先）にソートして部分一致事故を防止
     sorted_words = sorted(words, key=lambda x: len(x.word), reverse=True)
 
     for item in sorted_words:
         target_word = html.escape(item.word)
-        # 属性値用に引用符等を二重エスケープ
         meaning = html.escape(item.context_meaning, quote=True)
 
-        # \b による単語境界マッチ（英数字以外の境界も考慮）
+        # \b による単語境界マッチ
         pattern = re.compile(rf"\b({re.escape(target_word)})\b", re.IGNORECASE)
         replacement = f'<span class="word-hover" data-meaning="{meaning}">\\1</span>'
         escaped_text = pattern.sub(replacement, escaped_text)
@@ -127,38 +115,33 @@ def safe_word_annotation(original_text: str, words: List[WordTranslation]) -> st
 ```
 
 ### 5.3 表（Table）の処理
-- Markdownの表構造（`| Col1 | Col2 |`）は維持したままLLMに送り、セル内言語のみ翻訳させる。
-- HTML合成時、Markdownの表を `<table>` タグへ変換し、`<div class="table-container">` で囲んで `overflow-x: auto;` を適用する。
+
+* Markdownの表構造（`| Col1 | Col2 |`）は維持したままLLMに送り、セル内言語のみ翻訳させる。
+* HTML合成時、Markdownの表を `<table>` タグへ変換し、`<div class="table-container">` で囲んで `overflow-x: auto;` を適用する。
 
 ---
 
-## 6. 非同期ジョブ & バッチ処理設計 (FastAPI)
+## 6. デザイン＆レイアウト（元PDFの美しさを再現するCSS）
 
-巨大PDF（50〜200P）対応のため、同期レスポンスではなくジョブ管理方式をとる。
+単なるプレーンテキストの羅列にならないよう、以下のデザインシステムを単一HTML内に埋め込みます。
 
-### エンドポイント仕様
+* **ドキュメントコンテナ:** 中央寄せ（`max-width: 860px`）、論文・レポートらしい適度な行間（`line-height: 1.75`）とパディング。
+* **タイポグラフィ:** 見出し（`h1`〜`h3`）のメリハリあるフォントサイズと下部ボーダー。
+* **1文ホバーポップアップ (CSS/JS):** `mode-sentence-hover` 時、`.sentence-block:hover` に対処して、日本語訳を要素のすぐ上（またはアコーディオン風）にツールチップ/ポップアップ表示。
+* **表（Table）の再現:** `markdown` パッケージで `<table>` に変換し、`overflow-x: auto;` のスクロールコンテナで囲み、美しい境界線とヘッダー背景色を付与。
+
+---
+
+## 7. 非同期ジョブ & 多言語LLMプロバイダー自動切り替え
+
 1. **`POST /api/translate`**: PDFファイルを受け取り `job_id` (UUID) を即座に返す。
 2. **`GET /api/status/{job_id}`**: 進捗率（`status`: `queued` | `parsing` | `translating` | `completed` | `failed`, `progress`: 0〜100）を返す。
 3. **`GET /api/download/{job_id}`**: 完成した `.html` ファイルをレスポンス。
-
-### バッチ & API実行パラメータ
-- バッチサイズ: 25ブロック単位
-- 同時実行制限: `asyncio.Semaphore(5)` で過剰リクエストを制限
-- Anthropic SDK Client: `max_retries=5` を設定
+4. **自動フォールバック:** `.env` の有効なキー順に試行。429/500エラー発生時はログを出力して即座に次のプロバイダーへフォールバック。
 
 ---
 
-## 7. 生成される単一HTML/CSS/JSの仕様
+## 8. 生成される単一HTMLの完全制約
 
-### 7.1 機能要件
-- **3つの表示モード (CSS切り替え)**:
-  - `mode-default`: 原文のみ表示（単語ホバーで `data-meaning` ツールチップ表示）
-  - `mode-full-ja`: 日本語訳のみ表示
-  - `mode-block`: 1文ごとに原文と日本語訳を交互並列表示
-- **テーマ切り替え**: Dark / Light / System 追従 (`data-theme` 属性操作)
-- **フォントサイズ調整**: CSS変数 `--base-font-size` を JS で変更
-- **サイドバー**: 見出し（`heading`）から自動抽出した目次 (TOC) スムーススクロール
-
-### 7.2 制約事項
-- 外部CSS/JSライブラリ (Tailwind, Bootstrap, CDN等) への依存を**完全排除**。
-- Pure CSS / Pure Vanilla JS のみを使用し、オフライン環境（ローカルChrome）で単体起動可能にすること。
+* 外部CSS/JSライブラリ（Tailwind, Bootstrap等）への依存は**完全不可**。
+* Pure CSS / Pure Vanilla JS のみを使用し、完全オフライン（ローカルChrome）で動作すること。

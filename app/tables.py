@@ -10,7 +10,6 @@ from typing import List, Optional
 from app.annotator import safe_word_annotation
 from app.models import WordTranslation
 
-_SEPARATOR_CELL = re.compile(r":?-{3,}:?")
 _EMPHASIS = re.compile(r"(\*\*|__)(.+?)\1")
 
 
@@ -19,9 +18,10 @@ class _CellCollector(HTMLParser):
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
-        self.rows: list[list[str]] = []
-        self._row: list[str] | None = None
+        self.rows: list[list[tuple[str, str]]] = []
+        self._row: list[tuple[str, str]] | None = None
         self._cell: list[str] | None = None
+        self._cell_tag = "td"
         self._ignore_depth = 0
 
     def handle_starttag(self, tag: str, attrs) -> None:  # noqa: ANN001
@@ -33,6 +33,7 @@ class _CellCollector(HTMLParser):
             self._row = []
         elif name in {"td", "th"} and self._row is not None:
             self._cell = []
+            self._cell_tag = name
 
     def handle_endtag(self, tag: str) -> None:
         name = tag.lower()
@@ -40,10 +41,10 @@ class _CellCollector(HTMLParser):
             self._ignore_depth -= 1
             return
         if name in {"td", "th"} and self._cell is not None and self._row is not None:
-            self._row.append("".join(self._cell).strip())
+            self._row.append((self._cell_tag, "".join(self._cell).strip()))
             self._cell = None
         elif name == "tr" and self._row is not None:
-            if any(cell.strip() for cell in self._row):
+            if any(text.strip() for _tag, text in self._row):
                 self.rows.append(self._row)
             self._row = None
 
@@ -68,10 +69,7 @@ def markdown_table_to_html(
         return (
             '<div class="table-container"><pre>' + html.escape(source) + "</pre></div>"
         )
-    width = max(len(row) for row in rows)
     word_list = list(words or [])
-    header = rows[0]
-    body = rows[1:]
 
     def cell(text: str, tag: str) -> str:
         cleaned = _clean_cell(text)
@@ -82,59 +80,48 @@ def markdown_table_to_html(
         inner = inner.replace("\n", "<br>")
         return f"<{tag}>{inner}</{tag}>"
 
-    parts = ['<div class="table-container"><table>', "<thead><tr>"]
-    for index in range(width):
-        value = header[index] if index < len(header) else ""
-        parts.append(cell(value, "th"))
-    parts.append("</tr></thead>")
+    parts = ['<div class="table-container"><table>']
+    header = rows[0] if rows and all(tag == "th" for tag, _text in rows[0]) else None
+    body = rows[1:] if header is not None else rows
+    if header is not None:
+        parts.append("<thead><tr>")
+        for tag, value in header:
+            parts.append(cell(value, tag))
+        parts.append("</tr></thead>")
     if body:
         parts.append("<tbody>")
         for row in body:
             parts.append("<tr>")
-            for index in range(width):
-                value = row[index] if index < len(row) else ""
-                parts.append(cell(value, "td"))
+            for tag, value in row:
+                parts.append(cell(value, "td" if tag not in {"th", "td"} else tag))
             parts.append("</tr>")
         parts.append("</tbody>")
     parts.append("</table></div>")
     return "".join(parts)
 
 
-def _rows_from_source(source: str) -> list[list[str]]:
-    if "<table" in source.lower():
-        parser = _CellCollector()
-        parser.feed(source)
-        if parser.rows:
-            return parser.rows
-    return _rows_from_markdown(source)
+def _rows_from_source(source: str) -> list[list[tuple[str, str]]]:
+    raw = source.strip()
+    if raw.lower().startswith("<table"):
+        parsed = _rows_from_html(raw)
+        if parsed:
+            return parsed
+    if "|" in raw:
+        import markdown
+
+        rendered = markdown.markdown(raw, extensions=["tables"])
+        parsed = _rows_from_html(rendered)
+        if parsed:
+            return parsed
+    return _rows_from_html(raw)
 
 
-def _rows_from_markdown(source: str) -> list[list[str]]:
-    rows: list[list[str]] = []
-    for raw_line in source.splitlines():
-        line = raw_line.strip()
-        if not line.startswith("|"):
-            continue
-        cells = _split_row(line)
-        if not cells:
-            continue
-        if all(
-            _SEPARATOR_CELL.fullmatch(cell.replace(" ", ""))
-            for cell in cells
-            if cell != ""
-        ):
-            continue
-        rows.append(cells)
-    return rows
-
-
-def _split_row(line: str) -> list[str]:
-    stripped = line.strip()
-    if stripped.startswith("|"):
-        stripped = stripped[1:]
-    if stripped.endswith("|"):
-        stripped = stripped[:-1]
-    return [cell.strip() for cell in stripped.split("|")]
+def _rows_from_html(source: str) -> list[list[tuple[str, str]]]:
+    if "<table" not in source.lower() and "<tr" not in source.lower():
+        return []
+    parser = _CellCollector()
+    parser.feed(source)
+    return parser.rows
 
 
 def _clean_cell(text: str) -> str:
